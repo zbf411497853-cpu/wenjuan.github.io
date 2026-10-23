@@ -1,0 +1,1458 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>回声问卷</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script>
+/* 字体异步加载：网络慢或访问不到 Google Fonts 时，页面先用系统字体正常显示和播放动效 */
+(() => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap'; document.head.appendChild(l); })();
+</script>
+<style>
+/* Layout: black chrome with a yellow ticker, one cream card that bleeds off the bottom; a shaded tube coils behind the stage.
+   Committed single look (cream card on black), so colors are set explicitly rather than themed. */
+:root{
+  --chrome:#000;
+  --black:#060606;
+  --cream:#F7EFDC;
+  --white:#FFFFFF;
+  --ticker:#FDF087;
+  --muted:rgba(6,6,6,.62);
+  --faint:rgba(6,6,6,.42);
+  --hair:rgba(6,6,6,.12);
+  --accent:#FF6B2C;
+  --ok:#1F9D5B;
+  --bad:#C8320E;
+  --f-display:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-tight:"Inter Tight","Noto Sans SC","PingFang SC",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --snap:cubic-bezier(.16,1,.3,1);
+  color-scheme:light;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--chrome);color:var(--black);font-family:var(--f-body);font-size:16px;line-height:1.6;overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+
+/* ticker */
+.ticker{position:fixed;left:0;right:0;top:0;z-index:3;box-sizing:border-box;height:calc(28px + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);background:var(--ticker);overflow:hidden;border-bottom:1.5px solid var(--black)}
+.ticker .track{display:flex;width:max-content;animation:tick 40s linear infinite}
+.ticker span{font:700 11px/26px var(--f-tight);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;padding-right:34px}
+.ticker span::after{content:"✦";margin-left:34px}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* card */
+.card{position:fixed;z-index:1;top:calc(env(safe-area-inset-top,0px) + 38px);left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:-40px;border-radius:34px;overflow:hidden;background:var(--cream);isolation:isolate}
+#bg{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0;pointer-events:none}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
+.app{position:absolute;inset:0;z-index:1;display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+  padding-top:16px;padding-bottom:calc(40px + env(safe-area-inset-bottom,0px) + 14px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (min-width:900px){.app{padding-top:22px;padding-left:max(28px,env(safe-area-inset-left,0px));padding-right:max(28px,env(safe-area-inset-right,0px));padding-bottom:calc(40px + env(safe-area-inset-bottom,0px) + 20px)}}
+
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;animation:drop .5s var(--snap) .53s backwards}
+@keyframes drop{from{opacity:0;transform:translateY(-84px)}}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{flex:none;width:50px;height:50px;border-radius:50%;background:#F9DD37;border:1.5px solid var(--black);display:grid;place-items:center;transform:rotate(4.92deg);perspective:300px;font:900 15px/1 var(--f-display);letter-spacing:-.02em;cursor:default}
+.logo span{display:block;transition:transform .95s cubic-bezier(.2,.75,.25,1)}
+@media (hover:hover){.logo:hover span{transform:rotateY(720deg)}}
+.brand-t{display:grid;line-height:1.15}
+.brand-t b{font:800 15px var(--f-tight);letter-spacing:-.01em}
+.brand-t small{font:600 11px var(--f-tight);color:var(--muted);letter-spacing:.04em}
+@media (max-width:520px){.brand-t{display:none}.logo{width:44px;height:44px;font-size:13px}}
+.secs{display:flex;gap:4px;margin-left:auto}
+.sec{height:38px;padding:0 15px;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--black);border-radius:999px;background:var(--white);font:600 13px/1 var(--f-body);letter-spacing:-.01em;white-space:nowrap;transition:background-color .4s,color .4s}
+.sec.done{color:var(--faint)}
+.sec.done::before{content:"✓";font-family:var(--f-tight);font-weight:700}
+.sec.on{background:var(--hc);color:var(--black)}
+@media (max-width:1180px){.secs{display:none}}
+.top-r{display:flex;align-items:center;gap:6px;flex:none}
+.counter{height:38px;padding:0 14px;box-sizing:border-box;display:inline-flex;align-items:center;border:1.5px solid var(--black);border-radius:999px;background:var(--white);font:700 13px/1 var(--f-tight);font-variant-numeric:tabular-nums;white-space:nowrap}
+.counter b{font-weight:800}
+
+/* stage + screen transitions */
+.stage{position:relative;min-height:0}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;scrollbar-width:none;outline:none}
+.screen::-webkit-scrollbar{display:none}
+.screen > .inner{width:100%;max-width:860px;margin-inline:auto;margin-block:auto;padding-block:24px}
+.screen.enter{animation:scrIn .85s var(--ease) backwards}
+.screen.enter.back{animation-name:scrInBack}
+.screen.enter.intro{animation:none}
+.screen.leave{animation:scrOut .55s var(--ease) forwards;pointer-events:none}
+.screen.leave.back{animation-name:scrOutBack}
+@keyframes scrIn{from{opacity:0;transform:translateY(70px)}}
+@keyframes scrInBack{from{opacity:0;transform:translateY(-70px)}}
+@keyframes scrOut{to{opacity:0;transform:translateY(-70px) scale(.98)}}
+@keyframes scrOutBack{to{opacity:0;transform:translateY(70px) scale(.98)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}}
+
+/* ---------- welcome: Pulse-style wordmark ---------- */
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:clamp(12px,2.4vh,26px)}
+.art{position:relative;width:min(900px,100%);padding-block:clamp(28px,6vh,64px) clamp(14px,3vh,32px)}
+.word{position:relative;z-index:1;display:flex;justify-content:center;font-family:var(--f-display);font-weight:900;font-size:min(19vw,25vh,205px);line-height:1;letter-spacing:-.06em;color:var(--black)}
+.lt{position:relative;display:block;overflow:hidden;height:1.16em;line-height:1.16em}
+.rise{display:block}
+.bands{display:none}
+.intro .bands{display:block;position:absolute;inset:0;pointer-events:none}
+.band{position:absolute;left:0;right:0;top:calc(var(--k) * 1.16em / 6);height:calc(1.16em / 6 + 1px);overflow:hidden}
+.bin{position:absolute;left:0;right:0;top:calc(var(--k) * -1.16em / 6);display:block}
+.intro .bin{animation:shut .62s cubic-bezier(.55,0,.35,1) forwards;animation-delay:calc(var(--d) + var(--li) * .05s)}
+.intro .rise{animation:rise .95s var(--snap) backwards;animation-delay:calc(.6s + var(--li) * 65ms)}
+@keyframes shut{to{transform:translateY(-104%)}}
+@keyframes rise{from{transform:translateY(104%)}}
+.stk{position:absolute;z-index:2;left:var(--x);top:var(--y);width:var(--w);pointer-events:none;transform:translate(calc(var(--mx,0) * var(--z) * 1px),calc(var(--my,0) * var(--z) * 1px));transition:transform .6s var(--ease)}
+.pop{transform:rotate(var(--r))}
+.intro .pop{animation:pop .66s cubic-bezier(.3,.7,.4,1) backwards;animation-delay:var(--sd)}
+@keyframes pop{0%{opacity:0;transform:rotate(var(--r0)) scale(.55)}55%{opacity:1;transform:rotate(var(--r)) scale(1.14)}80%{transform:rotate(var(--r)) scale(.97)}100%{transform:rotate(var(--r)) scale(1)}}
+.pop svg{display:block;width:100%;height:auto;filter:drop-shadow(0 6px 0 rgba(6,6,6,.14));animation:bob 6s ease-in-out infinite;animation-delay:var(--bd)}
+@keyframes bob{50%{transform:translateY(-9px) rotate(2.5deg)}}
+.spark{position:absolute;z-index:3;left:var(--x);top:var(--y);width:var(--w);pointer-events:none;transform:scale(0);animation:twinkle 3.6s ease-in-out infinite;animation-delay:var(--sd)}
+@keyframes twinkle{0%,34%,100%{opacity:0;transform:scale(0)}8%{opacity:1;transform:scale(1.15) rotate(20deg)}16%{transform:scale(.9) rotate(40deg)}26%{opacity:1;transform:scale(.6) rotate(60deg)}}
+.tagline{margin:0;font:500 clamp(22px,3.5vw,46px)/1.25 var(--f-body);letter-spacing:-.03em;text-wrap:balance}
+.tagline span{display:inline-block}
+.intro .tagline span{animation:fadeUp .7s var(--snap) backwards}
+.intro .tagline span:nth-child(1){animation-delay:1.27s}
+.intro .tagline span:nth-child(2){animation-delay:1.53s}
+.hero-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.intro .hero-btns > *{animation:lift .6s var(--snap) backwards}
+.intro .hero-btns > :nth-child(1){animation-delay:.33s}
+.intro .hero-btns > :nth-child(2){animation-delay:.6s}
+@keyframes lift{from{opacity:0;transform:translateY(32px)}}
+.meta-pill{height:58px;padding:0 22px;box-sizing:border-box;display:inline-flex;align-items:center;border:1.5px solid var(--black);border-radius:999px;background:var(--white);font:600 15px var(--f-body);white-space:nowrap}
+@media (max-width:520px){
+  .tagline span{display:block}
+  .hero-btns{flex-direction:column;align-items:stretch;width:100%}
+  .hero-btns .btn,.meta-pill{width:100%;justify-content:center}
+}
+
+/* ---------- cube-roll buttons ---------- */
+.btn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-block;--h:50px;height:var(--h);perspective:520px;flex:none;vertical-align:middle;-webkit-tap-highlight-color:transparent}
+.btn.big{--h:58px}
+.btn.small{--h:36px}
+.btn:focus-visible{outline:2px solid var(--black);outline-offset:3px;border-radius:999px}
+.btn .cube{display:grid;position:relative;height:100%;transform-style:preserve-3d;transform:translateZ(calc(var(--h) / -2));transition:transform .22s cubic-bezier(.45,0,.2,1)}
+.btn .sz,.btn .f,.btn .b{display:flex;align-items:center;justify-content:center;gap:10px;padding:0 24px;box-sizing:border-box;border:1.5px solid var(--black);border-radius:999px;font:600 16px/1 var(--f-body);letter-spacing:-.01em;white-space:nowrap}
+.btn.big .sz,.btn.big .f,.btn.big .b{padding:0 30px;font-size:17px}
+.btn.small .sz,.btn.small .f,.btn.small .b{padding:0 14px;font-size:13px}
+.btn .sz{visibility:hidden;grid-area:1/1}
+.btn .f,.btn .b{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:opacity .22s}
+.btn .f{background:var(--black);color:var(--white);transform:translateZ(calc(var(--h) / 2))}
+.btn.ghost .f{background:var(--white);color:var(--black)}
+.btn .b{background:var(--hc,var(--accent));color:var(--black);transform:rotateX(-90deg) translateZ(calc(var(--h) / 2));opacity:.35}
+.btn .arr{display:inline-block}
+@media (hover:hover){
+  .btn:hover .cube,.btn:focus-visible .cube{transform:translateZ(calc(var(--h) / -2)) rotateX(90deg)}
+  .btn:hover .b,.btn:focus-visible .b{opacity:1}
+  .btn:hover .f,.btn:focus-visible .f{opacity:.35}
+}
+.actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:26px;animation:fadeUp .7s var(--ease) backwards;animation-delay:.55s}
+.kbd-hint,.meta{font:600 12px var(--f-tight);color:var(--faint);font-variant-numeric:tabular-nums}
+.meta{color:var(--muted)}
+
+/* ---------- question head ---------- */
+.eyebrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font:700 12px var(--f-tight);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);animation:fadeUp .7s var(--ease) backwards}
+.eyebrow .dot{width:11px;height:11px;border-radius:50%;background:var(--accent);border:1.5px solid var(--black);transition:background-color .4s}
+.eyebrow .sep{opacity:.5}
+.lead{max-width:62ch;margin-top:16px;padding:10px 16px;border:1.5px solid var(--black);border-radius:18px;background:var(--white);font-size:15px;animation:fadeUp .7s var(--ease) backwards;animation-delay:.15s}
+.lead::before{content:"✦ ";color:var(--black)}
+.qtitle{font-family:var(--f-display);font-weight:900;font-size:clamp(28px,4.8vw,52px);line-height:1.2;letter-spacing:-.03em;margin:14px 0 0;text-wrap:balance}
+.qtitle.long{font-size:clamp(23px,3.2vw,36px);line-height:1.36;letter-spacing:-.02em}
+.qdesc{color:var(--muted);max-width:60ch;margin:12px 0 0;animation:fadeUp .7s var(--ease) backwards;animation-delay:.3s}
+.qtag{font:700 11px var(--f-tight);letter-spacing:.08em;color:var(--muted);margin-top:14px;animation:fadeUp .7s var(--ease) backwards;animation-delay:.3s}
+.answer{margin-top:26px}
+.qtag + .answer{margin-top:12px}
+.ch{display:inline-block;white-space:pre;animation:chIn .8s var(--snap) backwards;animation-delay:calc(80ms + var(--i) * 20ms)}
+.wd{display:inline-block;white-space:nowrap}
+.hl{display:inline-block;padding:0 .06em;background:linear-gradient(transparent 56%,var(--accent) 56%,var(--accent) 94%,transparent 94%);animation:chIn .8s var(--snap) backwards;animation-delay:calc(80ms + var(--i) * 20ms)}
+.em{font-weight:700;color:inherit;background:linear-gradient(transparent 58%,var(--accent) 58%,var(--accent) 92%,transparent 92%)}
+@keyframes chIn{from{opacity:0;transform:translateY(.5em)}}
+
+/* ---------- choices ---------- */
+.opt,.face,.n,.rk,.pill-opt{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.opt:focus-visible,.face:focus-visible,.n:focus-visible,.rk:focus-visible,.pill-opt:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+.opts{display:grid;gap:8px;max-width:640px}
+.opts.cols{grid-template-columns:repeat(2,minmax(0,1fr));max-width:820px}
+@media (max-width:640px){.opts.cols{grid-template-columns:1fr}}
+.opt{display:flex;align-items:center;gap:14px;padding:12px 16px;min-height:54px;border:1.5px solid var(--black);border-radius:18px;background:var(--white);font-size:17px;line-height:1.4;
+  transition:transform .3s var(--ease),background-color .2s,color .2s;animation:fadeUp .6s var(--ease) backwards;animation-delay:calc(320ms + var(--i) * 50ms)}
+@media (hover:hover){.opt:hover{background:color-mix(in srgb,var(--accent) 40%,var(--white));transform:translateY(-2px)}}
+.opt .key{flex:none;width:28px;height:28px;display:grid;place-items:center;border:1.5px solid var(--black);border-radius:8px;background:var(--white);color:var(--black);font:800 12px var(--f-tight)}
+.opt .key.mk{width:16px;height:16px;border-radius:50%}
+.opt .key.mk.sq{border-radius:5px}
+.opt .emo{flex:none;font-size:22px;line-height:1}
+.opt .lbl{flex:1;min-width:0}
+.opt .tick{flex:none;width:20px;height:20px;opacity:0;transform:scale(.3) rotate(-30deg);transition:opacity .3s,transform .4s var(--ease)}
+.opt.on{background:var(--black);color:var(--white)}
+.opt.on .key{background:var(--accent);border-color:var(--accent);color:var(--black)}
+.opt.on .key.mk{box-shadow:inset 0 0 0 3px var(--black)}
+.opt.on .tick{opacity:1;transform:none}
+.opts.sm{max-width:none}
+.opts.sm .opt{min-height:0;padding:10px 14px;font-size:15px;gap:12px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill-opt{padding:9px 16px;border:1.5px solid var(--black);border-radius:999px;background:var(--white);font-size:15px;line-height:1.3;transition:background-color .2s,color .2s,transform .3s var(--ease)}
+@media (hover:hover){.pill-opt:hover{background:color-mix(in srgb,var(--accent) 40%,var(--white));transform:translateY(-2px)}}
+.pill-opt.on{background:var(--black);color:var(--white)}
+.other-in{all:unset;box-sizing:border-box;display:block;width:100%;max-width:560px;margin-top:12px;padding:8px 2px 10px;border-bottom:1.5px solid var(--black);font-size:16px;caret-color:var(--black)}
+.other-in::placeholder{color:var(--faint)}
+
+/* composite questions */
+.group{display:grid;gap:12px;max-width:860px}
+.item{padding:18px;border:1.5px solid var(--black);border-radius:26px;background:rgba(255,255,255,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:fadeUp .7s var(--ease) backwards;animation-delay:calc(260ms + var(--i) * 80ms)}
+.item-head{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
+.item-no{flex:none;width:30px;height:30px;display:grid;place-items:center;border:1.5px solid var(--black);border-radius:50%;background:var(--accent);font:800 14px/1 var(--f-tight);transition:background-color .4s}
+.item-label{flex:1;min-width:0;font-size:17px;font-weight:700;line-height:1.5;padding-top:2px}
+.tag{font:700 11px var(--f-tight);color:var(--muted);white-space:nowrap;padding-top:7px}
+.item-note{font-size:13px;color:var(--muted);margin:-4px 0 10px}
+.matrix{display:grid;gap:16px}
+.mlabel{font-size:14px;font-weight:500;color:var(--muted);margin-bottom:8px}
+
+/* text */
+.tx{all:unset;box-sizing:border-box;display:block;width:100%;max-width:700px;font-family:var(--f-display);font-weight:700;font-size:clamp(22px,4vw,34px);line-height:1.4;padding:8px 2px 12px;border-bottom:2px solid var(--black);caret-color:var(--black);animation:fadeUp .7s var(--ease) backwards;animation-delay:.35s}
+.tx:focus-visible{outline:none;border-bottom-width:3px}
+.tx::placeholder{color:var(--faint)}
+textarea.tx{white-space:pre-wrap;overflow-wrap:anywhere;resize:none;min-height:3.4em;font-family:var(--f-body);font-weight:400;font-size:clamp(18px,2.6vw,22px);line-height:1.6;overflow:hidden}
+.item .tx{max-width:none;font-family:var(--f-body);font-weight:400;font-size:16px;animation:none;background:var(--white);border:1.5px solid var(--black);border-radius:14px;padding:10px 14px}
+.count{font:600 12px var(--f-tight);color:var(--faint);margin-top:8px;font-variant-numeric:tabular-nums}
+
+/* template-only types kept working */
+.yn{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:560px}
+.yn .opt{flex-direction:column;align-items:flex-start;padding:20px;gap:20px}
+.yn .big{font-family:var(--f-display);font-weight:900;font-size:clamp(44px,9vw,72px);line-height:1}
+.yn .sub{font:700 16px var(--f-tight)}
+.yn .row{display:flex;justify-content:space-between;width:100%;align-items:center}
+.rate{display:flex;gap:clamp(2px,1.5vw,12px)}
+.face{font-size:clamp(34px,8vw,56px);line-height:1;padding:clamp(6px,1.5vw,12px);border-radius:18px;transition:transform .4s var(--ease),filter .3s,opacity .3s;animation:fadeUp .7s var(--ease) backwards;animation-delay:calc(360ms + var(--i) * 70ms)}
+.face:hover{transform:translateY(-8px) scale(1.12)}
+.rate.has .face:not(.on){opacity:.32;filter:grayscale(.85)}
+.face.on{transform:scale(1.28)}
+.face-lbl{margin-top:12px;font-weight:900;font-size:22px;min-height:1.6em}
+.nps{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:5px;max-width:740px}
+@media (max-width:540px){.nps{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.n{text-align:center;padding:14px 0;border:1.5px solid var(--black);border-radius:12px;background:var(--white);font:700 16px var(--f-tight);font-variant-numeric:tabular-nums;transition:transform .3s var(--ease),background-color .2s,color .2s}
+.n:hover{transform:translateY(-4px)}
+.n.on{background:var(--black);color:var(--white)}
+.ends{display:flex;justify-content:space-between;gap:16px;max-width:740px;margin-top:10px;font-size:13px;color:var(--muted)}
+.sl-val{font-weight:900;font-size:clamp(64px,14vw,136px);line-height:1;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:8px}
+.sl-val small{font-size:clamp(16px,2.4vw,22px);font-weight:500;color:var(--muted)}
+.sl-cap{margin:10px 0 18px;font-size:18px;min-height:1.6em}
+.range{-webkit-appearance:none;appearance:none;width:100%;max-width:660px;height:36px;background:transparent;margin:0;cursor:pointer;--p:50%}
+.range::-webkit-slider-runnable-track{height:10px;border-radius:10px;border:1.5px solid var(--black);background:linear-gradient(90deg,var(--accent) var(--p),var(--white) var(--p))}
+.range::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;margin-top:-10px;border-radius:50%;background:var(--white);border:1.5px solid var(--black)}
+.range::-moz-range-track{height:10px;border-radius:10px;border:1.5px solid var(--black);background:var(--white)}
+.range::-moz-range-progress{height:10px;border-radius:10px;background:var(--accent)}
+.range::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--white);border:1.5px solid var(--black)}
+.rank{display:grid;gap:8px;max-width:600px}
+.rk{display:flex;align-items:center;gap:14px;padding:12px 16px;border:1.5px solid var(--black);border-radius:18px;background:var(--white);font-size:17px;animation:fadeUp .7s var(--ease) backwards;animation-delay:calc(360ms + var(--i) * 60ms)}
+.rank.settled .rk{animation:none}
+.rk .num{flex:none;width:30px;height:30px;border-radius:50%;border:1.5px dashed var(--black);display:grid;place-items:center;font:700 12px var(--f-tight)}
+.rk.on .num{background:var(--accent);border-style:solid;font-size:14px}
+.rk .lbl{flex:1;min-width:0}
+
+/* ---------- end ---------- */
+.hero-title{font-family:var(--f-display);font-weight:900;font-size:clamp(44px,8vw,100px);line-height:1.06;letter-spacing:-.04em;margin:20px 0 0}
+.hero-desc{max-width:46ch;color:var(--muted);font-size:17px;margin:16px 0 0;animation:fadeUp .8s var(--ease) backwards;animation-delay:.5s}
+.status{display:inline-flex;align-items:center;gap:8px;font:600 13px var(--f-body);padding:7px 14px;border-radius:999px;border:1.5px solid var(--black);background:var(--white);margin-top:20px;animation:fadeUp .7s var(--ease) backwards;animation-delay:.55s}
+.status i{width:9px;height:9px;border-radius:50%;background:var(--faint)}
+.status.ok i{background:var(--ok)}
+.status.err i{background:var(--bad)}
+.status.saving i{animation:pulse 1s ease-in-out infinite}
+.status button{all:unset;cursor:pointer;text-decoration:underline;margin-left:4px}
+@keyframes pulse{50%{opacity:.25}}
+.summary{margin-top:12px;max-width:700px;border:1.5px solid var(--black);border-radius:22px;background:var(--white);padding:4px 18px}
+.summary .row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;padding:11px 0;border-bottom:1px solid var(--hair);font-size:14px}
+.summary .row:last-child{border-bottom:0}
+.summary .q{color:var(--muted)}
+.summary .a{overflow-wrap:anywhere}
+@media (max-width:540px){.summary .row{grid-template-columns:1fr;gap:2px}}
+details.mine{margin-top:22px;max-width:700px}
+details.mine summary{cursor:pointer;font:700 13px var(--f-tight);color:var(--muted)}
+.contact{margin-top:22px;max-width:620px;padding:20px;border:1.5px solid var(--black);border-radius:26px;background:var(--white);animation:fadeUp .8s var(--ease) backwards;animation-delay:.6s}
+.code{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;font:600 12px var(--f-tight);color:var(--muted)}
+.code b{font:800 24px var(--f-tight);letter-spacing:.06em;color:var(--black);background:var(--accent);padding:0 8px;border-radius:8px}
+.contact h3{font-weight:900;font-size:21px;margin:14px 0 4px}
+.contact > p{color:var(--muted);font-size:14px;margin:0 0 14px}
+.cform{display:grid;gap:10px}
+.cform label{display:grid;gap:5px;font:600 12px var(--f-tight);color:var(--muted)}
+.cform input{all:unset;box-sizing:border-box;padding:11px 14px;border:1.5px solid var(--black);border-radius:14px;background:var(--cream);font:400 15px var(--f-body);color:var(--black)}
+.cform input:focus-visible{outline:2px solid var(--black);outline-offset:2px}
+.cform .agree{display:flex;gap:8px;align-items:flex-start;font:400 13px/1.5 var(--f-body);color:var(--muted)}
+.cform .agree input{all:revert;margin:3px 0 0;accent-color:#060606;flex:none}
+.cmsg{font-size:14px;color:var(--muted);margin:0;min-height:1.4em}
+.cmsg.ok{color:var(--ok);font-weight:700}
+
+/* ---------- footer ---------- */
+.foot{display:grid;gap:10px}
+.progress{height:12px;box-sizing:border-box;border:1.5px solid var(--black);border-radius:999px;background:var(--white);overflow:hidden}
+.progress span{display:block;height:100%;width:0;background:var(--accent);transition:width .9s var(--ease),background-color .4s}
+.foot-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.hint{font:600 12px var(--f-tight);color:var(--muted);min-width:0}
+.navs{display:flex;gap:6px}
+.navs button{all:unset;box-sizing:border-box;cursor:pointer;width:44px;height:44px;display:grid;place-items:center;border:1.5px solid var(--black);border-radius:50%;background:var(--white);transition:background-color .2s,opacity .25s,transform .3s var(--ease)}
+@media (hover:hover){.navs button:not(:disabled):hover{background:var(--accent);transform:translateY(-2px)}}
+.navs button:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+.navs button:disabled{opacity:.3;cursor:default}
+.navs svg{width:16px;height:16px}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);transform:translate(-50%,16px);opacity:0;pointer-events:none;z-index:30;background:var(--black);color:var(--white);font-weight:500;font-size:14px;padding:10px 18px;border-radius:999px;transition:opacity .3s,transform .4s var(--ease)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* owner results drawer */
+.drawer{position:fixed;top:0;right:0;bottom:0;z-index:20;width:min(480px,100%);display:flex;flex-direction:column;box-sizing:border-box;background:var(--cream);border-left:1.5px solid var(--black);
+  padding:calc(env(safe-area-inset-top,0px) + 20px) max(20px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) 20px;
+  visibility:hidden;transform:translateX(102%);transition:transform .5s var(--ease),visibility 0s .5s}
+.drawer.open{visibility:visible;transform:none;transition:transform .5s var(--ease)}
+.dr-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-bottom:14px;border-bottom:1.5px solid var(--black)}
+.dr-head h3{font-weight:900;font-size:26px;margin:6px 0 0;line-height:1.2}
+.dr-body{flex:1;overflow-y:auto;min-height:0}
+.dr-foot{padding-top:14px;border-top:1.5px solid var(--black);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.icon-btn{all:unset;cursor:pointer;width:38px;height:38px;display:grid;place-items:center;border:1.5px solid var(--black);border-radius:50%;background:var(--white)}
+.icon-btn:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+.rq{padding:16px 0;border-bottom:1px solid var(--hair)}
+.rq h4{font-weight:900;font-size:15px;line-height:1.45;margin:0 0 10px}
+.rq h5{font-size:13px;font-weight:700;line-height:1.5;margin:14px 0 6px}
+.rq .sub,.dr-body > .sub{font:600 11px var(--f-tight);color:var(--muted);margin:-4px 0 10px;letter-spacing:.04em}
+.mres{font-size:12px;color:var(--muted);margin:10px 0 4px}
+.bars{display:grid;gap:5px}
+.bar-row{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:10px;align-items:center;font-size:13px}
+.bar{position:relative;padding:5px 10px;border-radius:8px;overflow:hidden;background:rgba(6,6,6,.06)}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--accent)}
+.bar span{position:relative}
+.pct{font:600 12px var(--f-tight);text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.stat-big{font-weight:900;font-size:32px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat-big small{font:600 12px var(--f-tight);color:var(--muted);margin-left:6px}
+.histo{display:flex;align-items:flex-end;gap:3px;height:54px;margin-top:10px}
+.histo div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end}
+.histo i{display:block;width:100%;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px}
+.histo b{font:500 10px var(--f-tight);color:var(--faint)}
+.quote{font-size:14px;padding:7px 12px;border-left:3px solid var(--accent);background:rgba(255,255,255,.7);margin-top:6px;overflow-wrap:anywhere}
+.empty{color:var(--muted);padding:28px 0;line-height:1.7}
+.copy-box{position:fixed;inset:20% 8%;z-index:60;background:var(--white);color:var(--black);border:1.5px solid var(--black);border-radius:14px;font:12px var(--f-tight);padding:12px}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  .ticker .track{animation:none}
+  .spark{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="ticker" aria-hidden="true"><div class="track" id="ticker"></div></div>
+<div class="card" id="card">
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <div class="app">
+    <header class="top">
+      <div class="brand"><span class="logo" aria-hidden="true"><span id="brandName">回声</span></span><span class="brand-t"><b id="brandLatin">Echo</b><small id="brandSub"></small></span></div>
+      <nav class="secs" id="secs" aria-label="问卷的五个部分"></nav>
+      <div class="top-r">
+        <span id="counter" class="counter"></span>
+        <button id="resultsBtn" class="btn small" type="button" hidden aria-hidden="true">查看结果</button>
+      </div>
+    </header>
+    <main id="stage" class="stage"></main>
+    <footer class="foot">
+      <div class="progress" aria-hidden="true"><span id="bar"></span></div>
+      <div class="foot-row">
+        <span id="hint" class="hint"></span>
+        <div class="navs">
+          <button id="prevBtn" type="button" aria-label="上一题"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l5-5 5 5"/></svg></button>
+          <button id="nextBtn" type="button" aria-label="下一题"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6l5 5 5-5"/></svg></button>
+        </div>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<aside id="drawer" class="drawer" aria-label="收到的回答">
+  <div class="dr-head">
+    <div><div class="eyebrow" style="animation:none">仅你可见</div><h3 id="drTitle">收到的回答</h3></div>
+    <button id="drClose" class="icon-btn" type="button" aria-label="关闭">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 2l10 10M12 2L2 12"/></svg>
+    </button>
+  </div>
+  <div id="drBody" class="dr-body"></div>
+  <div class="dr-foot">
+    <button id="copyTable" class="btn ghost small" type="button">复制表格</button>
+    <button id="copyJson" class="btn ghost small" type="button">复制 JSON</button>
+    <button id="copyContacts" class="btn ghost small" type="button">复制联系方式</button>
+    <button id="refreshRes" class="btn ghost small" type="button">刷新</button>
+  </div>
+</aside>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script>
+/* ==========================================================================
+   问卷内容 —— 换题目只需要改 SURVEY 这一段
+   --------------------------------------------------------------------------
+   题型 type：
+     single    单选（顶层单选选完自动进入下一题；选“其他（请注明）”时会停下来等输入）
+     multi     多选：max?、min?
+     group     组合题：items: [子题…]，子题可用 single / multi / matrix / text / longtext
+     matrix    矩阵单选：rows: [...]、cols: [...]
+     text / longtext  填空：placeholder?、max?、note?（输入框上方的小字提示）
+     yesno / rating / nps / slider / rank  模板保留的其他题型
+   选项写法：'文字'；含“（请注明）”的选项自动带输入框；ONLY('文字') 是互斥项
+   通用字段：id、no（显示的题号）、section（所属部分）、title（*文字* 高亮，\n 换行，{{题id}} 引用该题答案）、
+            desc?、lead?（题目上方的过渡语）、required?（默认必答）、shuffle?（前 n 个选项随机排列）、
+            showIf?: {id, is | in | not}   满足条件才显示（题目和子题都能用）
+            endIf?:  {id, in}              命中后直接进入结束页，答卷标记为不计入样本
+   ========================================================================== */
+const ONLY = label => ({ label, only: true });
+const STAGES = ['选题策划', '查资料、整理素材', '写文案、脚本或标题', '拍摄、剪辑等制作', '多平台改编与发布', '评论、私信与粉丝互动', '商务合作（对接、报价、执行）', '选品与直播准备（电商）', '查看数据与复盘', '日程与任务管理', '其他（请注明）'];
+const NOT_STUCK = ['最近30天没有遇到这种情况', '记不清了'];
+const AI_ACTIVE = ['最近30天在用，平均每周至少1次', '最近30天用过，但不到每周1次'];
+const AI_LAPSED = '以前用过，但最近30天没有再用';
+const AI_NEVER = '从未在创作工作中用过（只在生活中用过也选这项）';
+const Q8_NOT_DIRECT = ['大幅修改后用上', '只用作参考或启发', '没用上'];
+const NO_PROBLEM = '目前没有特别想解决的问题';
+
+const SURVEY = {
+  id: 'creator-30d-v1',
+  brand: '回声',
+  brandLatin: 'Echo',
+  brandSub: '创作者调查',
+  welcome: {
+    word: '卡住了？',
+    tag: ['聊聊你最近 30 天的创作，', '和那些卡住的瞬间。'],
+    button: '开始填写',
+    meta: '12 题 · 约 6–8 分钟 · 匿名',
+    ticker: ['回声问卷', '写给内容创作者', '12 题', '约 6–8 分钟', '匿名填写', '没有标准答案', '按实际情况选就好']
+  },
+  questions: [
+    /* ---------- 第一部分：关于你 ---------- */
+    { id: 'q1', no: 1, section: '第一部分 · 关于你', type: 'single',
+      title: '最近30天内，你是否以个人或个人品牌的身份，在任一内容平台发布过内容？',
+      options: ['是，创作是我目前的主要收入来源', '是，有创作收入，但不是主要收入来源', '是，目前还没有稳定的创作收入', '最近30天没有发布', '我主要为公司、机构或他人的账号工作（如员工、代运营）'],
+      endIf: { id: 'q1', in: ['最近30天没有发布', '我主要为公司、机构或他人的账号工作（如员工、代运营）'] } },
+    { id: 'q2', no: 2, section: '第一部分 · 关于你', type: 'group', title: '先认识一下你的账号',
+      items: [
+        { id: 'q2a', type: 'single', label: '你投入精力最多的平台是：', options: ['小红书', '抖音', 'B站', '视频号', '快手', '微信公众号', 'YouTube', 'TikTok', '其他（请注明）'] },
+        { id: 'q2b', type: 'single', label: '最近30天，你在几个平台定期发布内容？', options: ['1个', '2个', '3个及以上'] },
+        { id: 'q2c', type: 'single', label: '以下哪一类最接近你的内容？', options: ['知识或技能分享', '生活方式或个人博主', '电商带货', '娱乐、剧情或才艺', '其他（请注明）'] },
+        { id: 'q2d', type: 'single', label: '你在主平台的粉丝量大约是：', options: ['1千以下', '1千–1万', '1万–10万', '10万–100万', '100万以上', '不方便透露'] }
+      ] },
+
+    /* ---------- 第二部分：最近30天的工作 ---------- */
+    { id: 'q3', no: 3, section: '第二部分 · 最近30天的工作', type: 'single',
+      title: '请回想最近30天里，*最近一次*让你“卡住”的工作。它主要发生在哪个环节？',
+      desc: '比如反复返工、花的时间明显超出预期，或者最后没能完成。',
+      options: [...STAGES, ...NOT_STUCK] },
+    { id: 'q4', no: 4, section: '第二部分 · 最近30天的工作', type: 'group', title: '关于这次经历',
+      desc: '你刚才选的环节：{{q3}}',
+      showIf: { id: 'q3', not: NOT_STUCK },
+      items: [
+        { id: 'q4a', type: 'single', label: '它比你预期多花了多少时间？', options: ['不到1小时', '1–3小时', '3小时–1天', '1天以上', '最后没完成或放弃了', '说不清'] },
+        { id: 'q4b', type: 'single', label: '最近30天，类似情况大约发生过几次？', options: ['仅这一次', '2–3次', '4次及以上', '说不清'] },
+        { id: 'q4c', type: 'multi', label: '这次经历带来了哪些实际影响？',
+          options: ['推迟或取消了发布', '错过了热点', '合作交付延期或返工', '损失了一笔收入或一次合作机会', '内容数据明显不如预期', '占用了休息时间', ONLY('没有明显影响'), ONLY('不确定'), '其他（请注明）'] },
+        { id: 'q4d', type: 'longtext', required: false, label: '请简单描述当时的情况。', note: '请勿填写客户名称或未公开的数据。', placeholder: '比如：当时在做什么、卡在哪一步…', max: 500 }
+      ] },
+    { id: 'q5', no: 5, section: '第二部分 · 最近30天的工作', type: 'group', title: '关于这次的处理办法',
+      showIf: { id: 'q3', not: NOT_STUCK },
+      items: [
+        { id: 'q5a', type: 'multi', label: '这次你是怎么处理的？',
+          options: ['自己多花时间硬做完', '请教朋友或同行', '交给团队、兼职或外包', '用了AI工具', '用了其他软件或模板', '暂时搁置或放弃了', '其他（请注明）'] },
+        { id: 'q5b', type: 'multi', max: 2, label: '这种处理办法，最让你不满意的是什么？',
+          options: ['太耗时间和精力', '花了钱，但效果不成比例', '质量不稳定，需要反复修改', '不了解我的风格和定位', '交代需求、来回沟通太费劲', ONLY('没有不满意'), '其他（请注明）'] }
+      ] },
+    { id: 'q6', no: 6, section: '第二部分 · 最近30天的工作', type: 'single', shuffle: 12,
+      title: '如果*只能先解决一个*问题，你最希望解决哪一个？',
+      options: ['选题：不知道做什么，或者判断不准', '资料：查找和整理太慢、太乱', '文案：写得慢，或者写不出想要的效果', '制作：拍摄、剪辑太耗时', '多平台：把同一内容改成多个版本太费时间', '互动：评论私信回复不过来，或者漏掉合作消息', '商务：合作对接、报价、排期混乱', '电商：选品、准备卖点和直播太耗时', '数据：看不懂数据，不知道内容好坏的原因', '管理：任务多、节奏乱，经常赶截止时间', '流量与变现：流量不稳定，涨粉或变现难', '精力：体力和情绪消耗大，难以持续更新', NO_PROBLEM, '其他（请注明）'] },
+
+    /* ---------- 第三部分：关于AI工具 ---------- */
+    { id: 'q7', no: 7, section: '第三部分 · 关于AI工具', type: 'single',
+      lead: '接下来几题关于AI工具。无论你是否使用、是否认可AI，你的回答都同样有价值。',
+      title: '在创作相关工作中，你使用AI工具的情况是怎样的？',
+      desc: '例如豆包、DeepSeek、Kimi、ChatGPT、即梦，以及剪映中的AI功能等，名称仅为举例。',
+      options: [...AI_ACTIVE, AI_LAPSED, AI_NEVER, '不确定我用过的功能算不算AI'] },
+    { id: 'q8', no: 8, section: '第三部分 · 关于AI工具', type: 'group',
+      title: '请回想*最近一次*用AI做创作相关工作的经历',
+      desc: '无论结果好坏。',
+      showIf: { id: 'q7', in: [...AI_ACTIVE, AI_LAPSED] },
+      items: [
+        { id: 'q8a', type: 'single', label: '这件事大约发生在什么时候？', options: ['最近30天内', '1–3个月前', '3–6个月前', '6个月以前', '想不起具体是哪一次'] },
+        { id: 'q8b', type: 'single', label: '用在了哪个环节？', options: STAGES, showIf: { id: 'q8a', not: ['想不起具体是哪一次'] } },
+        { id: 'q8c', type: 'single', label: 'AI给出的结果，你最后是怎么用的？', options: ['几乎直接用上', '小幅修改后用上', ...Q8_NOT_DIRECT], showIf: { id: 'q8a', not: ['想不起具体是哪一次'] } },
+        { id: 'q8d', type: 'multi', label: '结果没能直接用上，可能和哪些情况有关？', showIf: { id: 'q8c', in: Q8_NOT_DIRECT },
+          options: [ONLY('本来就只想要参考，不算问题'), '结果本身不理想：有事实错误、内容空泛、套路化，或者不像我的风格', '缺少需要的信息：比如我的过往内容、账号数据、产品资料或最新热点', '工具或平台有限制：读不到平台数据、不能直接导出或发布，或者缺少某个功能', '我不确定怎么描述需求，或者反复调整太花时间', '额度、会员或计费方式不划算', '不敢直接用：担心出错、侵权、被识别为AI内容或影响账号', '检查和修改花的时间，不比自己做少', ONLY('不清楚原因'), '其他（请注明）'] },
+        { id: 'q8e', type: 'single', label: '之后你是怎么处理的？', showIf: { id: 'q8c', in: Q8_NOT_DIRECT },
+          options: ['调整说明或补充资料后再试，解决了', '换了别的工具，解决了', '改为自己做或找人做', '之后这类工作不再用AI', '没再处理'] },
+        { id: 'q8f', type: 'longtext', required: false, label: '简单说说：用了什么工具，给了它什么信息，得到了什么结果？', showIf: { id: 'q8a', not: ['想不起具体是哪一次'] }, placeholder: '比如：用豆包，给了三篇旧笔记，让它写新标题…', max: 500 }
+      ] },
+    { id: 'q9', no: 9, section: '第三部分 · 关于AI工具', type: 'multi', max: 3,
+      title: '你目前没有在创作工作中使用AI，主要是因为什么？',
+      showIf: { id: 'q7', in: [AI_LAPSED, AI_NEVER] },
+      options: ['现在的做法够用，暂时不需要', '试过，效果达不到我的要求', '不知道能用在哪里，或者学起来太费时间', '我的内容依赖个人经历或真人出镜，AI用处不大', '担心内容同质化，或者被平台识别、限流', '担心出错、版权或隐私问题', '费用问题', '合作方或平台有要求或限制', '只是还没试过', '其他（请注明）'] },
+
+    /* ---------- 第四部分：结果要求与边界 ---------- */
+    { id: 'q10', no: 10, section: '第四部分 · 结果要求与边界', type: 'group', title: '如果有人或工具来帮你',
+      items: [
+        { id: 'q10a', type: 'multi', max: 2, showIf: { id: 'q6', not: [NO_PROBLEM] },
+          label: '针对你在第6题选择的问题「{{q6}}」，假设有人或工具帮你处理（不限定是谁），你最希望拿到什么？',
+          options: ['可以直接使用的成品', '初稿，我再修改', '几个备选方案，由我来挑', '整理好的资料或清单', '分析结论和建议', '提醒和进度跟踪', '代我完成平台上的操作', ONLY('我更想自己处理'), ONLY('不确定')] },
+        { id: 'q10b', type: 'multi', max: 2, showIf: { id: 'q6', not: [NO_PROBLEM] },
+          label: '你会用什么标准判断这个结果“可以用”？',
+          options: ['符合我的风格和定位', '事实准确，有可查的来源', '符合平台规则和广告法', '在我需要的时间点之前交付', '我修改它的时间，明显少于自己从头做', '发布后的数据有改善', '合作方一次通过', ONLY('不确定'), '其他（请注明）'] },
+        { id: 'q10c', type: 'multi', label: '以下哪些环节，你一定要*自己最终确认*？',
+          options: ['选题方向和观点', '涉及事实、数据或产品功效的表述', '发布前的最终版本', '评论和私信的回复', '商务沟通、报价和合同', '选品', '账号登录和后台操作', '涉及粉丝或客户信息的处理', ONLY('都可以交出去，只要结果合格'), ONLY('不确定'), '其他（请注明）'] }
+      ] },
+
+    /* ---------- 第五部分：花费与后续 ---------- */
+    { id: 'q11', no: 11, section: '第五部分 · 花费与后续', type: 'group', title: '最后，聊聊花费',
+      items: [
+        { id: 'q11a', type: 'matrix', label: '最近30天，你在以下方面*实际*花了多少钱？', note: '不含投流；年付请按月折算；海外支出请按人民币估算。',
+          rows: ['软件工具订阅（含AI、剪辑、设计、素材）', '人力（助理、兼职、外包）', '课程、社群、咨询'],
+          cols: ['0元', '1–200', '201–1000', '1001–5000', '5000以上', '记不清／不方便透露'] },
+        { id: 'q11b', type: 'single', label: '这类支出通常是怎么决定的？',
+          options: ['我自己决定，有固定的月预算', '我自己决定，需要时再花', '需要和合伙人、团队或家人商量', '由MCN、机构或公司决定或报销', '目前不打算在这方面花钱', '不方便透露'] }
+      ] },
+    { id: 'q12', no: 12, section: '第五部分 · 花费与后续', type: 'multi',
+      title: '我们可能会围绕部分问题做进一步交流。以下哪些你愿意参加？',
+      desc: '都可以随时退出。',
+      options: ['30–45分钟的线上访谈', '免费试用针对某个具体问题的早期方案，并给出反馈', '如果早期方案在试用中达到你的要求，愿意了解付费方式（了解不等于承诺购买）', ONLY('暂不参与')] }
+  ],
+  end: {
+    title: '收到！\n谢谢你的*回答*',
+    desc: '你的回答会帮助我们理解创作者真实的工作方式。',
+    edit: '返回修改回答'
+  },
+  screened: {
+    title: '谢谢你的\n*时间*',
+    desc: '这份问卷主要面向最近30天以个人身份发布内容的创作者，所以就先问到这里。祝创作顺利！'
+  },
+  contact: {
+    from: 'q12',
+    title: '留个联系方式',
+    desc: '联系方式和问卷回答分开保存，只用于约访谈或试用，随时可以退出。',
+    url: ''   // 如果有外部联系方式表单，把链接填在这里，结束页就改为显示跳转按钮
+  }
+};
+
+/* 问卷的五个部分：顶部进度胶囊、强调色和背景软管的颜色都按部分切换 */
+const SECTIONS = [
+  { name: '第一部分 · 关于你', short: '关于你', color: '#F9DD37' },
+  { name: '第二部分 · 最近30天的工作', short: '最近30天', color: '#54A3F8' },
+  { name: '第三部分 · 关于AI工具', short: 'AI 工具', color: '#60EC9D' },
+  { name: '第四部分 · 结果要求与边界', short: '结果要求', color: '#E7C5FE' },
+  { name: '第五部分 · 花费与后续', short: '花费与后续', color: '#FF8A5B' }
+];
+
+/* ========================= 以下为模板逻辑 ========================= */
+const $ = (s, r = document) => r.querySelector(s);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const finePointer = matchMedia('(pointer: fine)').matches;
+const KEYS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const TYPE_LABEL = { single: '单选', multi: '多选', group: '组合题', matrix: '矩阵单选', yesno: '是 / 否', rating: '打分', nps: '0–10 打分', slider: '滑动选择', rank: '排序', text: '填空', longtext: '填空' };
+const DEFAULT_SCALE = [
+  { emoji: '😫', label: '糟透了' }, { emoji: '🙁', label: '不太好' }, { emoji: '😐', label: '一般般' },
+  { emoji: '🙂', label: '挺不错' }, { emoji: '🤩', label: '超棒的' }
+];
+const DRAFT_KEY = 'echo-draft-' + SURVEY.id;
+const LOCAL_KEY = 'echo-local-' + SURVEY.id;
+
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'style') el.style.cssText = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : String(kid));
+  return el;
+}
+const pad = n => String(n).padStart(2, '0');
+const isOther = label => /请注明/.test(label);
+const optList = q => (q.options || []).map(o => typeof o === 'string' ? { label: o, other: isOther(o) } : { ...o, other: o.other ?? isOther(o.label) });
+const leaves = q => q.type === 'group' ? q.items : [q];
+const plain = t => (t || '').replace(/\*/g, '').replace(/\n/g, ' ').replace(/\{\{\w+\}\}/g, '［所选问题］');
+const tick = () => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 20 20'); s.setAttribute('class', 'tick'); s.innerHTML = '<path d="M4 10.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'; return s; };
+
+/* 引用前面题目的答案：{{q6}} → “选题” */
+function answerText(id) {
+  const v = state.answers[id]; if (v == null || Array.isArray(v)) return '';
+  if (isOther(v)) return (state.answers[id + '_other'] || '').trim() || '其他';
+  return String(v).split('：')[0];
+}
+const pipe = t => (t || '').replace(/\{\{(\w+)\}\}/g, (_, id) => answerText(id) || '…');
+function rich(text) {
+  const f = document.createDocumentFragment();
+  pipe(text).split(/(\*[^*]+\*)/).forEach(p => {
+    if (!p) return;
+    if (p.length > 2 && p.startsWith('*') && p.endsWith('*')) f.append(h('strong', { class: 'em' }, p.slice(1, -1)));
+    else f.append(p);
+  });
+  return f;
+}
+
+/* 标题逐字拆分：*x* 高亮、\n 换行、英文单词不拆开换行 */
+function splitTitle(text) {
+  const frag = document.createDocumentFragment(); let i = 0;
+  text.split('\n').forEach((line, li) => {
+    if (li) frag.append(h('br'));
+    line.split(/(\*[^*]+\*)/).forEach(part => {
+      if (!part) return;
+      if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) { frag.append(h('span', { class: 'hl', style: `--i:${i++}` }, part.slice(1, -1))); return; }
+      for (const tok of part.match(/[A-Za-z0-9'’.,!?\-]+|\s+|[^\sA-Za-z0-9]/gu) || []) {
+        if (/^\s+$/.test(tok)) { frag.append(' '); continue; }
+        if (tok.length > 1) { const w = h('span', { class: 'wd' }); for (const c of tok) w.append(h('span', { class: 'ch', style: `--i:${i++}` }, c)); frag.append(w); }
+        else frag.append(h('span', { class: 'ch', style: `--i:${i++}` }, tok));
+      }
+    });
+  });
+  return frag;
+}
+
+/* ---------- 状态、显示条件与流程 ---------- */
+const state = { cur: 'welcome', answers: {}, orders: {}, code: null, status: null, statusText: '' };
+const qById = Object.fromEntries(SURVEY.questions.map(q => [q.id, q]));
+const LEAF = {};
+for (const q of SURVEY.questions) for (const it of leaves(q)) LEAF[it.id] = { item: it, parent: q.type === 'group' ? q : null };
+
+function condOK(c) {
+  if (!c) return true;
+  const v = LEAF[c.id] && leafVisible(c.id) ? state.answers[c.id] : undefined;
+  const vals = [].concat(v ?? []);
+  if (c.not) return !vals.some(x => c.not.includes(x));
+  const want = [].concat(c.is ?? c.in);
+  return vals.some(x => want.includes(x));
+}
+function leafVisible(id) {
+  const L = LEAF[id]; if (!L) return false;
+  if (L.parent && !condOK(L.parent.showIf)) return false;
+  return condOK(L.item.showIf);
+}
+function flowQs() {
+  const out = [];
+  for (const q of SURVEY.questions) {
+    if (!condOK(q.showIf)) continue;
+    out.push(q);
+    if (q.endIf && condOK(q.endIf)) break;
+  }
+  return out;
+}
+const visibleQs = flowQs;
+const flow = () => ['welcome', ...flowQs().map(q => q.id), 'end'];
+const isScreened = () => flowQs().some(q => q.endIf && condOK(q.endIf));
+
+/* 随机排列：每位受访者固定一种顺序，前后翻页不变 */
+function orderedOptions(it) {
+  const opts = optList(it); if (!it.shuffle) return opts;
+  let ord = state.orders[it.id];
+  if (!ord || ord.length !== it.shuffle) {
+    ord = [...Array(it.shuffle).keys()];
+    for (let i = ord.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ord[i], ord[j]] = [ord[j], ord[i]]; }
+    state.orders[it.id] = ord;
+  }
+  return [...ord.map(i => opts[i]), ...opts.slice(it.shuffle)];
+}
+
+function saveDraft() { try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ cur: state.cur, answers: state.answers, orders: state.orders })); } catch {} }
+function loadDraft() { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch { return null; } }
+function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); } catch {} }
+
+const stage = $('#stage');
+let advTimer;
+function go(id, dir = 1) {
+  clearTimeout(advTimer);
+  const old = stage.querySelector('.screen:not(.leave)');
+  const el = buildScreen(id);
+  el.classList.add('enter'); if (dir < 0) el.classList.add('back');
+  if (id === 'welcome' && !reduce) el.classList.add('intro');
+  if (old) { old.classList.remove('enter', 'back'); old.classList.add('leave'); if (dir < 0) old.classList.add('back'); setTimeout(() => old.remove(), 600); }
+  stage.append(el);
+  state.cur = id;
+  updateChrome();
+  if (id !== 'end') saveDraft();
+  el.querySelectorAll('.btn').forEach(cubify);
+  if (id === 'end' && !isScreened()) setTimeout(burst, 350);
+  setTimeout(() => { if (state.cur !== id) return; const f = el.querySelector('.tx-top'); (f || el).focus({ preventScroll: true }); }, 500);
+}
+function next() {
+  if (state.cur === 'end') return;
+  if (state.cur !== 'welcome') { const err = validate(qById[state.cur]); if (err) { nudge(err); return; } }
+  const f = flow(); const nid = f[f.indexOf(state.cur) + 1];
+  go(nid, 1);
+  if (nid === 'end') submit();
+}
+function prev() {
+  if (state.cur === 'end' || state.cur === 'welcome') return;
+  const f = flow(); const k = f.indexOf(state.cur);
+  if (k > 1) go(f[k - 1], -1);
+}
+function backToEdit() { const f = flow(); go(f[f.length - 2], -1); }
+function start() {
+  const d = loadDraft(); const f = flow();
+  go(d && f.includes(d.cur) && d.cur !== 'welcome' && d.cur !== 'end' ? d.cur : f[1], 1);
+}
+function restart() {
+  state.answers = {}; state.orders = {}; state.code = null; state.status = null; clearDraft();
+  go(flow()[1], 1);
+}
+function autoNext() { clearTimeout(advTimer); const at = state.cur; advTimer = setTimeout(() => { if (state.cur === at) next(); }, 560); }
+
+/* ---------- 校验 ---------- */
+const filled = v => v != null && v !== '' && !(Array.isArray(v) && !v.length) && !(typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
+function otherChosen(it) { const v = [].concat(state.answers[it.id] ?? []); return optList(it).some(o => o.other && v.includes(o.label)); }
+function leafError(it) {
+  if (!leafVisible(it.id)) return null;
+  const v = state.answers[it.id]; const req = it.required !== false;
+  switch (it.type) {
+    case 'multi': { const n = (v || []).length; const min = it.min || 1; if (req && n < min) return min > 1 ? `至少选 ${min} 项` : '至少选一项吧'; break; }
+    case 'matrix': if (req && it.rows.some(r => !(v || {})[r])) return '每一行都选一个吧'; break;
+    case 'rank': if (req && (v || []).length < optList(it).length) return '把每一项都排上序号吧'; break;
+    case 'text': case 'longtext': if (req && !(v || '').trim()) return '写点什么再继续吧'; break;
+    case 'slider': break;
+    default: if (req && v == null) return '先选一个吧';
+  }
+  if (otherChosen(it) && !(state.answers[it.id + '_other'] || '').trim()) return '请注明“其他”的具体内容';
+  return null;
+}
+function validate(q) {
+  for (const [i, it] of leaves(q).entries()) {
+    const e = leafError(it);
+    if (e) return { msg: q.type === 'group' ? `${String.fromCharCode(97 + i)} 小题：${e}` : e, id: it.id };
+  }
+  return null;
+}
+
+/* ---------- 顶部 / 底部 ---------- */
+function updateChrome() {
+  const qs = visibleQs(); const total = qs.length; const pos = qs.findIndex(q => q.id === state.cur) + 1;
+  const counter = $('#counter'); const hint = $('#hint');
+  if (state.cur === 'welcome') { counter.textContent = `共 ${SURVEY.questions.length} 题`; setMood(HOME_COLOR); setScene('hero'); }
+  else if (state.cur === 'end') { counter.innerHTML = '<b>完成</b>'; setMood(HOME_COLOR); setScene('hero'); }
+  else {
+    counter.innerHTML = `<b>${pad(pos)}</b> / ${pad(total)}`;
+    const q = qById[state.cur];
+    setMood(q.mood || sectionColor(q)); setScene('q');
+  }
+  $('#bar').style.width = state.cur === 'welcome' ? '0%' : state.cur === 'end' ? '100%' : ((pos - 1) / total * 100) + '%';
+  const q = qById[state.cur];
+  hint.textContent = state.cur === 'welcome' ? '按 Enter ↵ 开始'
+    : state.cur === 'end' ? '已完成全部题目'
+    : !q ? '' : q.type === 'group' ? '逐项作答 · Enter ↵ 继续'
+    : q.type === 'longtext' ? '⌘/Ctrl + Enter 继续 · Enter 换行'
+    : ['single', 'multi', 'rank'].includes(q.type) ? '按字母键选择 · Enter ↵ 继续'
+    : q.type === 'yesno' ? '按 Y / N 选择'
+    : ['rating', 'nps'].includes(q.type) ? '按数字键打分 · Enter ↵ 继续'
+    : 'Enter ↵ 继续';
+  const sIdx = q ? SECTIONS.findIndex(s => s.name === q.section) : -1;
+  document.querySelectorAll('#secs .sec').forEach((el, i) => { el.classList.toggle('on', i === sIdx); el.classList.toggle('done', state.cur === 'end' || i < sIdx); });
+  $('#prevBtn').disabled = state.cur === 'welcome' || state.cur === 'end' || pos <= 1;
+  $('#nextBtn').disabled = state.cur === 'end';
+}
+
+/* ---------- 屏幕构建 ---------- */
+function buildScreen(id) {
+  const el = h('section', { class: 'screen', tabindex: '-1' });
+  if (id === 'welcome') el.append(...buildWelcome());
+  else if (id === 'end') el.append(buildEnd());
+  else el.append(buildQuestion(qById[id]));
+  return el;
+}
+function actions(label = '继续', extra) {
+  return h('div', { class: 'actions' },
+    h('button', { class: 'btn', type: 'button', onclick: next }, label, h('span', { class: 'arr' }, '→')),
+    extra || h('span', { class: 'kbd-hint' }, 'Enter ↵'));
+}
+function typeTag(it) {
+  let t = TYPE_LABEL[it.type] || '';
+  if (it.type === 'multi' && it.max) t += ` · 最多 ${it.max} 项`;
+  if (it.required === false) t += ' · 选填';
+  return t;
+}
+function buildQuestion(q) {
+  const title = pipe(q.title);
+  return h('div', { class: 'inner' },
+    h('div', { class: 'eyebrow' }, h('span', { class: 'dot' }), `Q${pad(q.no ?? visibleQs().indexOf(q) + 1)}`, q.section && h('span', { class: 'sep' }, '/'), q.section),
+    q.lead && h('div', { class: 'lead' }, q.lead),
+    h('h2', { class: 'qtitle' + (plain(title).length > 32 ? ' long' : ''), id: 't-' + q.id }, splitTitle(title)),
+    q.desc && h('p', { class: 'qdesc' }, rich(q.desc)),
+    q.type !== 'group' && h('div', { class: 'qtag' }, typeTag(q)),
+    h('div', { class: 'answer' }, renderTop(q)));
+}
+
+/* ---------- 题型 ---------- */
+function flash(el) { if (!reduce) el.animate([{ opacity: 1 }, { opacity: .45 }, { opacity: 1 }, { opacity: .45 }, { opacity: 1 }], { duration: 420 }); }
+
+/* 单选 / 多选（顶层与组合题内通用），处理“其他（请注明）”和互斥项 */
+function choice(it, opt = {}) {
+  const top = !!opt.top; const multi = it.type === 'multi';
+  const list = orderedOptions(it);
+  const onlySet = new Set(list.filter(o => o.only).map(o => o.label));
+  const compact = !top && list.every(o => o.label.length <= 10);
+  const wrap = h('div', { class: compact ? 'pills' : 'opts' + (top ? (list.length > 6 ? ' cols' : '') : ' sm'), role: multi ? 'group' : 'radiogroup', 'aria-label': plain(it.label || it.title) });
+  const other = h('input', { type: 'text', class: 'other-in', id: 'in-' + it.id + '-other', placeholder: '请注明…', maxlength: '80', autocomplete: 'off', 'aria-label': '请注明其他' });
+  other.value = state.answers[it.id + '_other'] || '';
+  other.addEventListener('input', () => { state.answers[it.id + '_other'] = other.value; saveDraft(); });
+  const get = () => multi ? (state.answers[it.id] || []) : state.answers[it.id];
+  const sync = notify => {
+    const v = get(); const sel = l => multi ? v.includes(l) : v === l;
+    wrap.querySelectorAll('[data-label]').forEach(b => { const on = sel(b.dataset.label); b.classList.toggle('on', on); b.setAttribute(multi ? 'aria-pressed' : 'aria-checked', String(on)); });
+    other.hidden = !list.some(o => o.other && sel(o.label));
+    if (opt.meta) opt.meta.textContent = `已选 ${v.length}${it.max ? ' / 最多 ' + it.max : ''}`;
+    if (notify && opt.onChange) opt.onChange();
+  };
+  list.forEach((o, i) => {
+    const key = top ? KEYS[i] : null;
+    const b = compact
+      ? h('button', { type: 'button', class: 'pill-opt', 'data-label': o.label, role: multi ? null : 'radio' }, o.label)
+      : h('button', { type: 'button', class: 'opt', style: `--i:${i}`, 'data-label': o.label, 'data-key': key, role: multi ? null : 'radio' },
+          h('span', { class: 'key' + (top ? '' : multi ? ' mk sq' : ' mk') }, key || ''), o.emoji && h('span', { class: 'emo' }, o.emoji), h('span', { class: 'lbl' }, o.label), tick());
+    b.addEventListener('click', () => {
+      if (multi) {
+        let s = [...get()];
+        if (s.includes(o.label)) s = s.filter(x => x !== o.label);
+        else {
+          s = o.only ? [] : s.filter(x => !onlySet.has(x));
+          if (it.max && s.length >= it.max) { nudge({ msg: `最多选 ${it.max} 项`, id: it.id }); return; }
+          s.push(o.label); flash(b);
+        }
+        state.answers[it.id] = s;
+      } else { state.answers[it.id] = o.label; flash(b); }
+      sync(true); saveDraft();
+      if (o.other && !other.hidden) setTimeout(() => other.focus({ preventScroll: false }), 60);
+      if (!multi && top && !o.other) autoNext();
+    });
+    wrap.append(b);
+  });
+  sync(false);
+  return h('div', { class: 'choice' }, wrap, other);
+}
+
+function matrix(it) {
+  const val = () => state.answers[it.id] || {};
+  return h('div', { class: 'matrix' }, it.rows.map(r => {
+    const cells = h('div', { class: 'pills', role: 'radiogroup', 'aria-label': r });
+    it.cols.forEach(c => {
+      const on = val()[r] === c;
+      const b = h('button', { type: 'button', class: 'pill-opt' + (on ? ' on' : ''), role: 'radio', 'aria-checked': String(on) }, c);
+      b.addEventListener('click', () => {
+        state.answers[it.id] = { ...val(), [r]: c };
+        cells.querySelectorAll('.pill-opt').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); });
+        flash(b); saveDraft();
+      });
+      cells.append(b);
+    });
+    return h('div', { class: 'mrow' }, h('div', { class: 'mlabel' }, r), cells);
+  }));
+}
+
+function textField(it, top) {
+  const long = it.type === 'longtext'; const max = it.max || (long ? 500 : 60);
+  const count = h('div', { class: 'count' });
+  const f = long
+    ? h('textarea', { class: 'tx' + (top ? ' tx-top' : ''), id: 'in-' + it.id, maxlength: max, rows: '2', placeholder: it.placeholder || '在这里输入…', 'aria-label': plain(it.label || it.title) })
+    : h('input', { type: 'text', class: 'tx' + (top ? ' tx-top' : ''), id: 'in-' + it.id, maxlength: max, placeholder: it.placeholder || '在这里输入…', autocomplete: 'off', 'aria-label': plain(it.label || it.title) });
+  f.value = state.answers[it.id] || '';
+  const fit = () => { if (long) { f.style.height = 'auto'; f.style.height = f.scrollHeight + 'px'; } };
+  const upd = () => { state.answers[it.id] = f.value; count.textContent = `${f.value.length} / ${max}`; };
+  f.addEventListener('input', () => { upd(); fit(); saveDraft(); }); upd(); requestAnimationFrame(fit);
+  return h('div', {}, f, count);
+}
+
+function renderGroup(q) {
+  const els = q.items.map((it, i) => h('div', { class: 'item', 'data-item': it.id, style: `--i:${i}` },
+    h('div', { class: 'item-head' },
+      h('span', { class: 'item-no' }, String.fromCharCode(97 + i)),
+      h('div', { class: 'item-label' }, rich(it.label)),
+      h('span', { class: 'tag' }, typeTag(it))),
+    it.note && h('p', { class: 'item-note' }, it.note),
+    it.type === 'matrix' ? matrix(it)
+      : it.type === 'text' || it.type === 'longtext' ? textField(it, false)
+      : choice(it, { onChange: refresh })));
+  function refresh() {
+    els.forEach((el, i) => {
+      const vis = leafVisible(q.items[i].id);
+      if (el.hidden === vis) {
+        el.hidden = !vis;
+        if (vis && !reduce) el.animate([{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], { duration: 450, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      }
+    });
+  }
+  els.forEach((el, i) => { el.hidden = !leafVisible(q.items[i].id); });
+  return h('div', {}, h('div', { class: 'group' }, els), actions());
+}
+
+function renderTop(q) {
+  switch (q.type) {
+    case 'group': return renderGroup(q);
+    case 'single': case 'multi': {
+      const meta = q.type === 'multi' ? h('span', { class: 'meta' }) : null;
+      const c = choice(q, { top: true, meta });
+      const needBtn = q.type === 'multi' || optList(q).some(o => o.other);
+      return h('div', {}, c, needBtn && actions('继续', meta));
+    }
+    case 'matrix': return h('div', {}, matrix(q), actions());
+    case 'text': return h('div', {}, textField(q, true), actions());
+    case 'longtext': return h('div', {}, textField(q, true), actions(q.required === false ? '继续（可跳过）' : '继续', h('span', { class: 'kbd-hint' }, '⌘/Ctrl + Enter')));
+    default: return RENDER[q.type](q);
+  }
+}
+
+/* 模板保留的其他题型（本问卷未使用） */
+const RENDER = {
+  yesno(q) {
+    const choices = [{ label: q.yes || '是', sub: 'Yes', key: 'Y' }, { label: q.no || '否', sub: 'No', key: 'N' }];
+    const wrap = h('div', { class: 'yn', role: 'radiogroup', 'aria-labelledby': 't-' + q.id });
+    choices.forEach((c, i) => {
+      const on = state.answers[q.id] === c.label;
+      const b = h('button', { type: 'button', class: 'opt' + (on ? ' on' : ''), style: `--i:${i}`, role: 'radio', 'aria-checked': String(on), 'data-key': c.key },
+        h('span', { class: 'big' }, c.label), h('span', { class: 'row' }, h('span', { class: 'sub' }, c.sub), h('span', { class: 'key' }, c.key)));
+      b.addEventListener('click', () => {
+        state.answers[q.id] = c.label;
+        wrap.querySelectorAll('.opt').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); });
+        flash(b); saveDraft(); autoNext();
+      });
+      wrap.append(b);
+    });
+    return wrap;
+  },
+  rating(q) {
+    const scale = q.scale || DEFAULT_SCALE; const v = state.answers[q.id];
+    const lbl = h('div', { class: 'face-lbl' }, v ? scale[v - 1].label : '');
+    const wrap = h('div', { class: 'rate' + (v ? ' has' : ''), role: 'radiogroup', 'aria-labelledby': 't-' + q.id });
+    scale.forEach((s, i) => {
+      const on = v === i + 1;
+      const b = h('button', { type: 'button', class: 'face' + (on ? ' on' : ''), style: `--i:${i}`, role: 'radio', 'aria-checked': String(on), 'aria-label': `${i + 1} 分：${s.label}`, 'data-key': String(i + 1) }, s.emoji);
+      b.addEventListener('mouseenter', () => { lbl.textContent = s.label; });
+      b.addEventListener('mouseleave', () => { const cv = state.answers[q.id]; lbl.textContent = cv ? scale[cv - 1].label : ''; });
+      b.addEventListener('click', () => {
+        state.answers[q.id] = i + 1; wrap.classList.add('has'); lbl.textContent = s.label;
+        wrap.querySelectorAll('.face').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); });
+        if (!reduce) b.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.5) rotate(-10deg)' }, { transform: 'scale(1.2) rotate(6deg)' }, { transform: 'scale(1.28)' }], { duration: 520, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        saveDraft(); autoNext();
+      });
+      wrap.append(b);
+    });
+    return h('div', {}, wrap, lbl);
+  },
+  nps(q) {
+    const v = state.answers[q.id];
+    const wrap = h('div', { class: 'nps', role: 'radiogroup', 'aria-labelledby': 't-' + q.id });
+    for (let i = 0; i <= 10; i++) {
+      const on = v === i;
+      const b = h('button', { type: 'button', class: 'n' + (on ? ' on' : ''), style: `--i:${i}`, role: 'radio', 'aria-checked': String(on), 'data-key': i < 10 ? String(i) : null }, String(i));
+      b.addEventListener('click', () => {
+        state.answers[q.id] = i;
+        wrap.querySelectorAll('.n').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', String(x === b)); });
+        flash(b); saveDraft(); autoNext();
+      });
+      wrap.append(b);
+    }
+    return h('div', {}, wrap, h('div', { class: 'ends' }, h('span', {}, q.minLabel || '0 · 完全不会'), h('span', {}, q.maxLabel || '10 · 非常愿意')));
+  },
+  slider(q) {
+    const min = q.min ?? 0, max = q.max ?? 100, step = q.step ?? 1;
+    if (state.answers[q.id] == null) state.answers[q.id] = q.default ?? Math.round((min + max) / 2 / step) * step;
+    const val = h('span', {}); const cap = h('div', { class: 'sl-cap' });
+    const inp = h('input', { type: 'range', class: 'range', id: 'in-' + q.id, min, max, step, 'aria-labelledby': 't-' + q.id });
+    inp.value = state.answers[q.id];
+    const upd = () => {
+      const v = +inp.value; state.answers[q.id] = v;
+      val.textContent = v.toLocaleString('zh-CN') + (q.maxPlus && v >= max ? '+' : '');
+      inp.style.setProperty('--p', ((v - min) / (max - min) * 100) + '%');
+      const c = (q.captions || []).find(c => v <= c.max); cap.textContent = c ? c.text : ''; cap.hidden = !c;
+    };
+    inp.addEventListener('input', upd); inp.addEventListener('change', saveDraft); upd();
+    return h('div', { class: 'slider' },
+      h('div', { class: 'sl-val' }, q.prefix && h('small', {}, q.prefix), val, q.unit && h('small', {}, q.unit)),
+      cap, inp, h('div', { class: 'ends' }, h('span', {}, q.minLabel ?? min), h('span', {}, q.maxLabel ?? max)), actions());
+  },
+  rank(q) {
+    const opts = optList(q); const els = new Map();
+    const wrap = h('div', { class: 'rank', role: 'group', 'aria-labelledby': 't-' + q.id });
+    const ord = () => state.answers[q.id] || [];
+    const draw = animate => {
+      const before = new Map([...els].map(([k, el]) => [k, el.getBoundingClientRect().top]));
+      const o = ord(); const sorted = [...o, ...opts.map(x => x.label).filter(l => !o.includes(l))];
+      sorted.forEach(l => {
+        const el = els.get(l); const r = o.indexOf(l);
+        el.classList.toggle('on', r >= 0); el.setAttribute('aria-pressed', String(r >= 0));
+        el.querySelector('.num').textContent = r >= 0 ? r + 1 : el.dataset.key;
+        wrap.append(el);
+      });
+      if (animate && !reduce) els.forEach((el, k) => { const dy = before.get(k) - el.getBoundingClientRect().top; if (dy) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 480, easing: 'cubic-bezier(.2,.8,.2,1)' }); });
+    };
+    opts.forEach((o, i) => {
+      const b = h('button', { type: 'button', class: 'rk', style: `--i:${i}`, 'data-key': KEYS[i] }, h('span', { class: 'num' }), h('span', { class: 'lbl' }, o.label));
+      b.addEventListener('click', () => {
+        wrap.classList.add('settled');
+        const o2 = [...ord()]; const k = o2.indexOf(o.label);
+        if (k >= 0) o2.splice(k, 1); else o2.push(o.label);
+        state.answers[q.id] = o2; draw(true); saveDraft();
+      });
+      els.set(o.label, b);
+    });
+    draw(false);
+    setTimeout(() => wrap.classList.add('settled'), 1400);
+    const reset = h('button', { class: 'btn ghost small', type: 'button', onclick: () => { state.answers[q.id] = []; draw(true); saveDraft(); } }, '重新排');
+    return h('div', {}, wrap, actions('继续', reset));
+  }
+};
+
+/* 答案转成可读文字（结束页 & 结果面板共用） */
+function fmt(it, v, others) {
+  if (!filled(v)) return '';
+  const o = (others ?? state.answers[it.id + '_other'] ?? '').trim();
+  const lab = x => isOther(x) && o ? `其他：${o}` : x;
+  switch (it.type) {
+    case 'multi': return v.map(lab).join('、');
+    case 'matrix': return Object.entries(v).map(([r, c]) => `${r.replace(/（.*）/, '')}：${c}`).join('；');
+    case 'rank': return v.map((x, i) => `${i + 1}. ${x}`).join('  ');
+    case 'rating': { const s = (it.scale || DEFAULT_SCALE)[v - 1]; return s ? `${s.emoji} ${s.label}` : String(v); }
+    case 'nps': return `${v} / 10`;
+    case 'slider': return `${it.prefix || ''}${Number(v).toLocaleString('zh-CN')}${it.unit ? ' ' + it.unit : ''}`;
+    case 'single': return lab(v);
+    default: return String(v).trim();
+  }
+}
+
+function buildEnd() {
+  const screened = isScreened(); const e = screened ? SURVEY.screened : SURVEY.end;
+  const c = SURVEY.contact; const cq = qById[c.from];
+  const wants = !screened && cq && [].concat(state.answers[c.from] || []).some(x => !optList(cq).find(o => o.label === x)?.only);
+  const rows = [];
+  if (!screened) for (const q of visibleQs()) for (const it of leaves(q)) {
+    if (!leafVisible(it.id)) continue; const t = fmt(it, state.answers[it.id]); if (!t) continue;
+    rows.push(h('div', { class: 'row' }, h('div', { class: 'q' }, `Q${q.no}${q.type === 'group' ? String.fromCharCode(97 + q.items.indexOf(it)) : ''} · ${plain(pipe(it.label || it.title))}`), h('div', { class: 'a' }, t)));
+  }
+  return h('div', { class: 'inner' },
+    h('div', { class: 'eyebrow' }, h('span', { class: 'dot' }), 'Done', h('span', { class: 'sep' }, '/'), screened ? '问卷结束' : `${visibleQs().length} 题全部完成`),
+    h('h1', { class: 'hero-title' }, splitTitle(e.title)),
+    e.desc && h('p', { class: 'hero-desc' }, e.desc),
+    h('div', { id: 'status', class: 'status ' + (state.status || '') }, h('i'), h('span', {}, state.statusText || '')),
+    wants && contactCard(),
+    rows.length && h('details', { class: 'mine' }, h('summary', {}, '查看我的回答'), h('div', { class: 'summary' }, rows)),
+    !screened && h('div', { class: 'actions' }, h('button', { class: 'btn ghost', type: 'button', onclick: backToEdit }, e.edit)));
+}
+
+/* 结束页的独立联系方式表单：单独存进 contacts，与回答分开 */
+function contactCard() {
+  const c = SURVEY.contact;
+  if (!state.code) state.code = genCode();
+  const card = h('div', { class: 'contact' },
+    h('div', { class: 'code' }, h('span', {}, '你的答卷编号'), h('b', {}, state.code)),
+    h('h3', {}, c.title), h('p', {}, c.desc));
+  if (c.url) { card.append(h('a', { class: 'btn', href: c.url, target: '_blank', rel: 'noopener' }, '填写联系方式', h('span', { class: 'arr' }, '→'))); return card; }
+  const msg = h('p', { class: 'cmsg', role: 'status' });
+  const form = h('form', { class: 'cform' },
+    h('label', {}, '称呼（选填）', h('input', { id: 'c-name', type: 'text', maxlength: '30', autocomplete: 'off' })),
+    h('label', {}, '微信 / 手机 / 邮箱', h('input', { id: 'c-contact', type: 'text', maxlength: '80', required: true, autocomplete: 'off' })),
+    h('label', {}, '方便联系的时间（选填）', h('input', { id: 'c-time', type: 'text', maxlength: '40', placeholder: '比如：工作日晚上', autocomplete: 'off' })),
+    h('label', { class: 'agree' }, h('input', { id: 'c-ok', type: 'checkbox' }), h('span', {}, '我同意用以上联系方式联系我，用于约访谈或试用。联系方式与问卷回答分开保存，我可以随时要求删除。')),
+    h('div', { class: 'actions', style: 'margin-top:6px;animation:none' }, h('button', { class: 'btn', type: 'submit' }, '提交联系方式')), msg);
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const contact = $('#c-contact').value.trim(); if (!contact) { msg.textContent = '请填写一种联系方式。'; return; }
+    if (!$('#c-ok').checked) { msg.textContent = '请先勾选同意。'; return; }
+    msg.textContent = '正在提交…';
+    const res = await saveContact({ code: state.code, name: $('#c-name').value.trim(), contact, time: $('#c-time').value.trim(), wants: state.answers[c.from] || [], consent: true });
+    if (res === 'ok') form.replaceWith(h('p', { class: 'cmsg ok' }, '已收到，我们会通过你留下的方式联系你。'));
+    else msg.textContent = res;
+  });
+  card.append(form);
+  return card;
+}
+function genCode() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; const r = crypto.getRandomValues(new Uint8Array(6)); for (const x of r) s += a[x % a.length]; return 'R-' + s; }
+
+/* ---------- 提示 / 抖动 ---------- */
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2000); }
+function nudge(err) {
+  toast(err.msg);
+  const scr = stage.querySelector('.screen:not(.leave)');
+  const target = (err.id && scr?.querySelector(`[data-item="${err.id}"]`)) || scr?.querySelector('.answer');
+  if (!target) return;
+  if (target.matches('.item')) target.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
+  if (!reduce) target.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-10px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(0)' }], { duration: 380 });
+}
+
+/* ---------- 提交：发送到自己的接口（云函数） ---------- */
+const capP = () => Promise.resolve(null);
+const dbReady = capP('db');
+const userReady = capP('user');
+const apiBase = () => SURVEY.api || 'https://xxx-1q2w3e-d7g7ah0i863dd8fd6-1514902803.ap-shanghai.app.tcloudbase.com/api';
+function clientId() {
+  try {
+    let id = localStorage.getItem('echo-cid');
+    if (!id) { id = (crypto.randomUUID ? crypto.randomUUID() : 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/[^\w-]/g, ''); localStorage.setItem('echo-cid', id); }
+    return id;
+  } catch { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+}
+async function postJSON(path, data) {
+  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 15000);
+  try {
+    const res = await fetch(apiBase() + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), signal: ctl.signal });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok || !j.ok) throw Object.assign(new Error(j.error || 'HTTP ' + res.status), { status: res.status });
+    return j;
+  } finally { clearTimeout(tm); }
+}
+function setStatus(kind, text, retry) {
+  state.status = kind; state.statusText = text;
+  const el = document.getElementById('status'); if (!el) return;
+  el.className = 'status ' + kind;
+  el.replaceChildren(...[h('i'), h('span', {}, text), retry && h('button', { type: 'button', onclick: submit }, '重试')].filter(Boolean));
+}
+async function submit() {
+  const answers = {};
+  for (const q of visibleQs()) for (const it of leaves(q)) {
+    if (!leafVisible(it.id)) continue;
+    const v = state.answers[it.id]; if (!filled(v)) continue;
+    answers[it.id] = typeof v === 'string' ? v.trim() : v;
+    if (otherChosen(it)) answers[it.id + '_other'] = (state.answers[it.id + '_other'] || '').trim();
+  }
+  if (!state.code) state.code = genCode();
+  const screenedOut = isScreened();
+  const record = { survey: SURVEY.id, code: state.code, screenedOut, answers, orders: state.orders, submittedAt: new Date().toISOString() };
+  setStatus('saving', '正在提交…');
+  try {
+    await postJSON('/submit', { ...record, clientId: clientId() });
+    clearDraft(); setStatus('ok', screenedOut ? '已记录 · 感谢参与' : '已提交 · 感谢参与');
+  } catch (e) {
+    try { localStorage.setItem(LOCAL_KEY, JSON.stringify(record)); } catch {}
+    setStatus('err', e.status === 429 ? '提交太频繁，请稍后重试' : '提交没有成功，请检查网络后重试', true);
+  }
+}
+async function saveContact(rec) {
+  try { await postJSON('/contact', rec); return 'ok'; }
+  catch (e) { return e.status === 400 ? '请检查填写的内容。' : e.status === 429 ? '提交太频繁，请稍后再试。' : '提交没有成功，请稍后再试。'; }
+}
+
+/* ---------- 结果面板（只有问卷所有者能看到） ---------- */
+(async () => {
+  const u = await userReady; if (!u) return;
+  let own = false; try { own = await u.isOwner(); } catch {}
+  if (own) $('#resultsBtn').hidden = false;
+})();
+let lastRows = [], lastContacts = [];
+const drawer = $('#drawer');
+function openDrawer() { drawer.classList.add('open'); loadResults(); setTimeout(() => $('#drClose').focus(), 300); }
+function closeDrawer() { drawer.classList.remove('open'); $('#resultsBtn').focus(); }
+async function loadResults() {
+  const body = $('#drBody'); body.replaceChildren(h('p', { class: 'empty' }, '正在读取…'));
+  const db = await dbReady;
+  if (!db) { body.replaceChildren(h('p', { class: 'empty' }, '这个视图读不到数据库。请在 claude.ai 上打开这个问卷再查看结果。')); return; }
+  try {
+    const [rs, cs] = await Promise.all([db.collection('responses').limit(1000).get(), db.collection('contacts').limit(1000).get()]);
+    lastRows = rs.docs.map(d => d.data()).filter(r => r && r.answers && r.survey === SURVEY.id);
+    lastContacts = cs.docs.map(d => d.data()).filter(Boolean);
+    renderResults(lastRows, lastContacts);
+  } catch (e) { body.replaceChildren(h('p', { class: 'empty' }, '读取失败，请稍后点“刷新”。')); }
+}
+function bars(pairs, denom, fmtR = c => `${c} · ${Math.round(c / denom * 100)}%`) {
+  return h('div', { class: 'bars' }, pairs.map(([label, c]) =>
+    h('div', { class: 'bar-row' }, h('div', { class: 'bar' }, h('i', { style: `width:${denom ? c / denom * 100 : 0}%` }), h('span', {}, label)), h('span', { class: 'pct' }, fmtR(c)))));
+}
+function leafStats(it, rows) {
+  const vals = rows.map(r => r.answers[it.id]).filter(filled);
+  const out = h('div', {}, h('div', { class: 'sub' }, `${TYPE_LABEL[it.type]} · ${vals.length} 人作答`));
+  if (!vals.length) return out;
+  const avg = a => a.reduce((s, x) => s + Number(x), 0) / a.length;
+  switch (it.type) {
+    case 'single': case 'multi': case 'yesno': {
+      const labels = it.type === 'yesno' ? [it.yes || '是', it.no || '否'] : optList(it).map(o => o.label);
+      out.append(bars(labels.map(l => [l, vals.filter(v => Array.isArray(v) ? v.includes(l) : v === l).length]).sort((a, b) => b[1] - a[1]), vals.length));
+      const others = rows.map(r => r.answers[it.id + '_other']).filter(Boolean);
+      others.slice(-5).reverse().forEach(t => out.append(h('div', { class: 'quote' }, `其他：${t}`)));
+      break;
+    }
+    case 'matrix':
+      it.rows.forEach(r => {
+        const rv = vals.map(v => v[r]).filter(Boolean);
+        out.append(h('div', { class: 'mres' }, r), bars(it.cols.map(c => [c, rv.filter(x => x === c).length]), rv.length));
+      });
+      break;
+    case 'rating': {
+      const scale = it.scale || DEFAULT_SCALE;
+      out.append(h('div', { class: 'stat-big' }, avg(vals).toFixed(1), h('small', {}, `平均分 / ${scale.length}`)), bars(scale.map((s, i) => [`${s.emoji} ${s.label}`, vals.filter(v => v === i + 1).length]), vals.length));
+      break;
+    }
+    case 'nps': {
+      const dist = Array.from({ length: 11 }, (_, i) => vals.filter(v => v === i).length); const top = Math.max(...dist, 1);
+      out.append(h('div', { class: 'stat-big' }, avg(vals).toFixed(1), h('small', {}, '平均分 / 10')), h('div', { class: 'histo' }, dist.map((c, i) => h('div', { title: `${i} 分：${c} 人` }, h('i', { style: `height:${c / top * 100}%` }), h('b', {}, i)))));
+      break;
+    }
+    case 'slider': { const ns = vals.map(Number); out.append(h('div', { class: 'stat-big' }, fmt(it, Math.round(avg(ns))), h('small', {}, `平均 · 最低 ${fmt(it, Math.min(...ns))} · 最高 ${fmt(it, Math.max(...ns))}`))); break; }
+    case 'rank': {
+      const labels = optList(it).map(o => o.label);
+      const avgPos = labels.map(l => { const ps = vals.map(v => v.indexOf(l)).filter(p => p >= 0).map(p => p + 1); return [l, ps.length ? avg(ps) : labels.length]; }).sort((a, b) => a[1] - b[1]);
+      out.append(bars(avgPos.map(([l, p]) => [l, labels.length + 1 - p]), labels.length, c => `第 ${(labels.length + 1 - c).toFixed(1)} 位`));
+      break;
+    }
+    default:
+      vals.slice(-8).reverse().forEach(v => out.append(h('div', { class: 'quote' }, String(v))));
+      if (vals.length > 8) out.append(h('div', { class: 'sub', style: 'margin:8px 0 0' }, `另有 ${vals.length - 8} 条，可复制表格查看全部`));
+  }
+  return out;
+}
+function renderResults(rows, contacts) {
+  const body = $('#drBody');
+  const valid = rows.filter(r => !r.screenedOut); const out = rows.length - valid.length;
+  $('#drTitle').textContent = `有效回答 · ${valid.length} 份`;
+  if (!rows.length) { body.replaceChildren(h('p', { class: 'empty' }, '还没有人提交。把问卷链接发给大家，提交的回答会出现在这里。')); return; }
+  const blocks = [h('p', { class: 'sub', style: 'margin:14px 0 0' }, `共收到 ${rows.length} 份，其中 ${out} 份在 Q1 被筛除，不计入下方统计。`)];
+  for (const q of SURVEY.questions) {
+    const blk = h('div', { class: 'rq' }, h('h4', {}, `Q${q.no} · ${plain(q.title)}`));
+    if (q.type === 'group') q.items.forEach((it, i) => blk.append(h('h5', {}, `${String.fromCharCode(97 + i)}. ${plain(it.label)}`), leafStats(it, valid)));
+    else blk.append(leafStats(q, valid));
+    blocks.push(blk);
+  }
+  const cBlk = h('div', { class: 'rq' }, h('h4', {}, `联系方式（单独保存）· ${contacts.length} 条`));
+  if (!contacts.length) cBlk.append(h('div', { class: 'sub' }, '还没有人留下联系方式。'));
+  contacts.slice().sort((a, b) => String(b.at).localeCompare(String(a.at))).forEach(c => cBlk.append(h('div', { class: 'quote' }, `${c.code || '—'} · ${c.name || '未留称呼'} · ${c.contact}${c.time ? ' · ' + c.time : ''}`)));
+  blocks.push(cBlk);
+  body.replaceChildren(...blocks);
+}
+function toTable(rows) {
+  const cols = [];
+  for (const q of SURVEY.questions) for (const it of leaves(q)) { cols.push(it.id); if (optList(it).some(o => o.other)) cols.push(it.id + '_other'); }
+  const cell = v => v == null ? '' : Array.isArray(v) ? v.join(' | ') : typeof v === 'object' ? Object.entries(v).map(([k, x]) => `${k}=${x}`).join(' | ') : v;
+  const esc = s => String(s ?? '').replace(/[\t\r\n]+/g, ' ');
+  return [['code', 'screenedOut', 'submittedAt', ...cols].join('\t'),
+    ...rows.map(r => [r.code, r.screenedOut ? 1 : 0, r.submittedAt, ...cols.map(c => cell(r.answers?.[c]))].map(esc).join('\t'))].join('\n');
+}
+function copyText(text, okMsg) {
+  const fallback = () => { const ta = h('textarea', { class: 'copy-box', readonly: true }); ta.value = text; document.body.append(ta); ta.select(); ta.addEventListener('blur', () => ta.remove()); toast('已选中全部内容，按 ⌘/Ctrl + C 复制'); };
+  try { navigator.clipboard.writeText(text).then(() => toast(okMsg), fallback); } catch { fallback(); }
+}
+$('#resultsBtn').addEventListener('click', openDrawer);
+$('#drClose').addEventListener('click', closeDrawer);
+$('#refreshRes').addEventListener('click', loadResults);
+$('#copyTable').addEventListener('click', () => copyText(toTable(lastRows), `已复制 ${lastRows.length} 份回答，可直接粘贴到 Excel`));
+$('#copyJson').addEventListener('click', () => copyText(JSON.stringify(lastRows, null, 2), `已复制 ${lastRows.length} 份回答（JSON）`));
+$('#copyContacts').addEventListener('click', () => copyText(['code\tname\tcontact\ttime\twants\tat', ...lastContacts.map(c => [c.code, c.name, c.contact, c.time, (c.wants || []).join(' | '), c.at].map(x => String(x ?? '').replace(/[\t\r\n]+/g, ' ')).join('\t'))].join('\n'), `已复制 ${lastContacts.length} 条联系方式`));
+
+/* ---------- 键盘 ---------- */
+addEventListener('keydown', e => {
+  if (e.isComposing || e.keyCode === 229) return;
+  if (drawer.classList.contains('open')) { if (e.key === 'Escape') closeDrawer(); return; }
+  const t = e.target; const tag = t.tagName;
+  if (t.closest?.('form')) return;
+  if (e.key === 'Enter') {
+    if (tag === 'TEXTAREA') { if (e.metaKey || e.ctrlKey) { e.preventDefault(); next(); } return; }
+    if (tag === 'BUTTON' && t.classList.contains('btn')) return;
+    if (tag === 'SUMMARY') return;
+    e.preventDefault();
+    if (state.cur === 'welcome') start(); else next();
+    return;
+  }
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); prev(); return; }
+  if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); if (state.cur === 'welcome') start(); else next(); return; }
+  if (e.key.length === 1) {
+    const b = stage.querySelector(`.screen:not(.leave) [data-key="${CSS.escape(e.key.toUpperCase())}"]`);
+    if (b) { e.preventDefault(); b.click(); }
+  }
+});
+$('#prevBtn').addEventListener('click', prev);
+$('#nextBtn').addEventListener('click', () => state.cur === 'welcome' ? start() : next());
+
+/* ---------- 首页贴纸（代码绘制，白色描边的贴纸质感） ---------- */
+const halo = id => `<defs><filter id="${id}" x="-20%" y="-20%" width="140%" height="140%"><feMorphology in="SourceAlpha" operator="dilate" radius="7" result="d"/><feFlood flood-color="#fff"/><feComposite in2="d" operator="in" result="w"/><feMerge><feMergeNode in="w"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+const STICKERS = {
+  camera: `<svg viewBox="0 0 230 180" aria-hidden="true">${halo('hc')}<g filter="url(#hc)" stroke="#060606" stroke-width="5" stroke-linejoin="round">
+    <rect x="52" y="22" width="62" height="34" rx="9" fill="#F9DD37"/>
+    <rect x="18" y="46" width="194" height="116" rx="24" fill="#F9DD37"/>
+    <rect x="18" y="80" width="194" height="16" fill="#060606" stroke="none" opacity=".12"/>
+    <circle cx="115" cy="104" r="44" fill="#fff"/><circle cx="115" cy="104" r="28" fill="#54A3F8"/>
+    <circle cx="104" cy="93" r="8" fill="#fff" stroke="none"/>
+    <circle cx="182" cy="70" r="9" fill="#EA3A06"/></g></svg>`,
+  chat: `<svg viewBox="0 0 210 190" aria-hidden="true">${halo('hb')}<g filter="url(#hb)" stroke="#060606" stroke-width="5" stroke-linejoin="round">
+    <path d="M36 20h138a22 22 0 0 1 22 22v78a22 22 0 0 1-22 22H96l-40 34v-34H36a22 22 0 0 1-22-22V42a22 22 0 0 1 22-22z" fill="#60EC9D"/>
+    <path d="M105 118C72 96 64 72 82 62c13-7 23 3 23 10 0-7 10-17 23-10 18 10 10 34-23 56z" fill="#FF5C8A"/></g></svg>`,
+  phone: `<svg viewBox="0 0 170 240" aria-hidden="true">${halo('hp')}<g filter="url(#hp)" stroke="#060606" stroke-width="5" stroke-linejoin="round">
+    <rect x="18" y="10" width="134" height="220" rx="26" fill="#E7C5FE"/>
+    <rect x="32" y="32" width="106" height="156" rx="10" fill="#fff"/>
+    <path d="M70 84l38 26-38 26z" fill="#060606"/>
+    <rect x="44" y="164" width="82" height="8" rx="4" fill="#fff" stroke-width="3"/>
+    <rect x="44" y="164" width="46" height="8" rx="4" fill="#EA3A06" stroke-width="3"/>
+    <rect x="66" y="203" width="38" height="9" rx="4.5" fill="#060606" stroke="none"/></g></svg>`,
+  chart: `<svg viewBox="0 0 200 200" aria-hidden="true">${halo('hk')}<g filter="url(#hk)" stroke="#060606" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="100" cy="100" r="84" fill="#54A3F8"/>
+    <rect x="52" y="110" width="22" height="40" rx="3" fill="#fff"/><rect x="86" y="88" width="22" height="62" rx="3" fill="#fff"/><rect x="120" y="66" width="22" height="84" rx="3" fill="#F9DD37"/>
+    <path d="M46 96l34-26 24 12 40-34" fill="none" stroke-width="7"/><path d="M126 46h20v20" fill="none" stroke-width="7"/></g></svg>`
+};
+const SPARK = `<svg viewBox="-6 -6 112 112" aria-hidden="true"><path d="M50 0C55 35 65 45 100 50 65 55 55 65 50 100 45 65 35 55 0 50 35 45 45 35 50 0Z" fill="#fff" stroke="#060606" stroke-width="6" stroke-linejoin="round"/></svg>`;
+const STICKER_LAYOUT = [
+  { k: 'camera', x: '-2%', y: '-4%', w: '21%', r: '-7deg', r0: '-55deg', sd: '.33s', bd: '0s', z: -26 },
+  { k: 'chat', x: '45%', y: '-3%', w: '13%', r: '-7deg', r0: '-28deg', sd: '.40s', bd: '-1.6s', z: 18 },
+  { k: 'phone', x: '85%', y: '26%', w: '13%', r: '9deg', r0: '26deg', sd: '.60s', bd: '-3s', z: -16 },
+  { k: 'chart', x: '4%', y: '58%', w: '14%', r: '-4deg', r0: '-22deg', sd: '.73s', bd: '-4.2s', z: 22 }
+];
+const SPARKS = [{ x: '0%', y: '58%', w: '4%', sd: '.8s' }, { x: '16%', y: '66%', w: '3.2%', sd: '.9s' }, { x: '7%', y: '86%', w: '2.4%', sd: '1s' }];
+const svgEl = s => { const t = document.createElement('template'); t.innerHTML = s.trim(); return t.content.firstElementChild; };
+
+function buildWelcome() {
+  const w = SURVEY.welcome; const d = loadDraft();
+  const resumePos = d && d.answers && Object.keys(d.answers).length && qById[d.cur] ? visibleQs().findIndex(q => q.id === d.cur) + 1 : 0;
+  const BANDS = [.13, .05, .19, .09, .23, .15];
+  const word = h('div', { class: 'word', role: 'img', 'aria-label': w.word },
+    [...w.word].map((g, li) => h('span', { class: 'lt', style: `--li:${li}`, 'aria-hidden': 'true' },
+      h('span', { class: 'bands' }, BANDS.map((dl, k) => h('span', { class: 'band', style: `--k:${k};--d:${dl}s` }, h('span', { class: 'bin' }, g)))),
+      h('span', { class: 'rise' }, g))));
+  const stickers = STICKER_LAYOUT.map(s => h('div', { class: 'stk', style: `--x:${s.x};--y:${s.y};--w:${s.w};--z:${s.z}` },
+    h('div', { class: 'pop', style: `--r:${s.r};--r0:${s.r0};--sd:${s.sd}` }, Object.assign(svgEl(STICKERS[s.k]), { style: `--bd:${s.bd}` }))));
+  const sparks = SPARKS.map(s => Object.assign(h('div', { class: 'spark', style: `--x:${s.x};--y:${s.y};--w:${s.w};--sd:${s.sd}` }), { innerHTML: SPARK }));
+  const startBtn = h('button', { class: 'btn big', type: 'button', id: 'startBtn', style: '--hc:#F9DD37', onclick: start },
+    resumePos > 0 ? `继续填写 · 第 ${resumePos} 页` : w.button, h('span', { class: 'arr' }, '→'));
+  const second = resumePos > 0
+    ? h('button', { class: 'btn big ghost', type: 'button', style: '--hc:#54A3F8', onclick: restart }, '从头开始')
+    : h('span', { class: 'meta-pill' }, w.meta);
+  return [h('div', { class: 'inner hero' },
+    h('div', { class: 'art' }, word, stickers, sparks),
+    h('p', { class: 'tagline' }, w.tag.map(t => h('span', {}, t))),
+    h('div', { class: 'hero-btns' }, startBtn, second))];
+}
+/* 贴纸跟随鼠标轻微视差 */
+addEventListener('pointermove', e => {
+  if (reduce || e.pointerType !== 'mouse') return;
+  const a = stage.querySelector('.screen:not(.leave) .art'); if (!a) return;
+  a.style.setProperty('--mx', (e.clientX / innerWidth - .5).toFixed(3));
+  a.style.setProperty('--my', (e.clientY / innerHeight - .5).toFixed(3));
+});
+
+/* ---------- 3D 翻滚按钮：正面 + 顶面，悬停时向上翻转 ---------- */
+function cubify(btn) {
+  if (btn.dataset.cube) return; btn.dataset.cube = '1';
+  if (!btn.getAttribute('aria-label')) btn.setAttribute('aria-label', btn.textContent.replace(/[→]/g, '').trim());
+  const kids = [...btn.childNodes];
+  const face = c => { const s = document.createElement('span'); s.className = c; if (c !== 'f') s.setAttribute('aria-hidden', 'true'); kids.forEach(k => s.append(k.cloneNode(true))); return s; };
+  const cube = document.createElement('span'); cube.className = 'cube';
+  cube.append(face('sz'), face('f'), face('b'));
+  btn.replaceChildren(cube);
+}
+
+/* ---------- 背景：一根会扭动的立体软管（颜色随问卷部分变化） ---------- */
+const HOME_COLOR = '#FF6B2C';
+const sectionColor = q => (SECTIONS.find(s => s.name === q.section) || {}).color || HOME_COLOR;
+const hex = c => { const n = parseInt(c.slice(1), 16); return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; };
+const mixc = (a, b, k) => a.map((x, i) => x + (b[i] - x) * k);
+const rgba = (c, a = 1) => `rgba(${c.map(x => Math.round(Math.max(0, Math.min(1, x)) * 255)).join(',')},${a})`;
+const smooth = k => k * k * (3 - 2 * k);
+/* 两组路径：首页让软管从文字后面穿过；答题时退到画面角落 */
+const SCENES = {
+  hero: [[-0.12, 0.98], [0.14, 0.62], [0.34, 0.84], [0.47, 0.42], [0.62, 0.12], [0.86, 0.34], [0.8, 0.8], [1.14, 0.72]],
+  q: [[-0.25, 0.3], [0.03, 0.09], [0.22, -0.34], [0.6, -0.62], [1.25, -0.42], [1.0, 0.64], [0.91, 0.96], [1.16, 1.3]]
+};
+const TUBE = { cur: hex(HOME_COLOR), target: hex(HOME_COLOR), mix: 0, mixTarget: 0 };
+const tcv = $('#bg'); const tctx = tcv.getContext('2d');
+let TW = 0, TH = 0, TDPR = 1;
+function sizeTube() { const r = tcv.getBoundingClientRect(); TDPR = Math.min(devicePixelRatio || 1, 1.5); TW = r.width; TH = r.height; tcv.width = Math.round(TW * TDPR); tcv.height = Math.round(TH * TDPR); }
+function tubePath(t) {
+  const k = smooth(Math.max(0, Math.min(1, TUBE.mix)));
+  const pts = SCENES.hero.map((p, i) => {
+    const q = SCENES.q[i];
+    return [(p[0] + (q[0] - p[0]) * k + Math.sin(t * .35 + i * 1.7) * .018) * TW, (p[1] + (q[1] - p[1]) * k + Math.cos(t * .29 + i * 2.3) * .024) * TH];
+  });
+  const P = new Path2D(); P.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    P.bezierCurveTo(p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6, p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6, p2[0], p2[1]);
+  }
+  return P;
+}
+function drawTube(t = 0) {
+  if (!TW) return;
+  const ctx = tctx; ctx.setTransform(TDPR, 0, 0, TDPR, 0, 0); ctx.clearRect(0, 0, TW, TH);
+  const P = tubePath(t); const k = smooth(Math.max(0, Math.min(1, TUBE.mix)));
+  const Wt = (TW > TH ? TH * .17 : TW * .26) * (1 - .3 * k);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  /* 投影：把描边移到画面外，只留下模糊的影子 */
+  ctx.save(); ctx.translate(-20000, 0); ctx.shadowOffsetX = 20000; ctx.shadowOffsetY = Wt * .28; ctx.shadowBlur = 34; ctx.shadowColor = 'rgba(70,35,10,.22)';
+  ctx.strokeStyle = '#000'; ctx.lineWidth = Wt; ctx.stroke(P); ctx.restore();
+  const c = TUBE.cur, dark = mixc(c, [0, 0, 0], .4), light = mixc(c, [1, 1, 1], .5);
+  const N = 26;
+  for (let i = 0; i <= N; i++) {
+    const f = i / N;
+    ctx.save(); ctx.translate(-f * Wt * .11, -f * Wt * .15);
+    ctx.strokeStyle = rgba(f < .5 ? mixc(dark, c, f * 2) : mixc(c, light, (f - .5) * 2));
+    ctx.lineWidth = Wt * (1 - f * .86); ctx.stroke(P); ctx.restore();
+  }
+  /* 针织纹理：沿着软管流动的细密横纹 */
+  ctx.save(); ctx.translate(-Wt * .03, -Wt * .04); ctx.setLineDash([2.2, Wt * .065]); ctx.lineDashOffset = -t * 9;
+  ctx.strokeStyle = rgba(dark, .2); ctx.lineWidth = Wt * .92; ctx.stroke(P); ctx.restore();
+}
+function setMood(color) {
+  document.documentElement.style.setProperty('--accent', color);
+  TUBE.target = hex(color);
+  if (reduce) { TUBE.cur = TUBE.target; drawTube(); }
+}
+function setScene(name) { TUBE.mixTarget = name === 'q' ? 1 : 0; if (reduce) { TUBE.mix = TUBE.mixTarget; drawTube(); } }
+(function startTube() {
+  sizeTube();
+  const ro = new ResizeObserver(() => { sizeTube(); drawTube(performance.now() / 1000); });
+  ro.observe(tcv);
+  if (reduce) { drawTube(); return; }
+  let last = 0;
+  const loop = now => {
+    if (!document.hidden && now - last > 30) {
+      last = now;
+      TUBE.cur = mixc(TUBE.cur, TUBE.target, .06);
+      TUBE.mix += (TUBE.mixTarget - TUBE.mix) * .045;
+      drawTube(now / 1000);
+    }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+})();
+
+/* ---------- 结束彩带 ---------- */
+function burst() {
+  if (reduce) return;
+  const cv = $('#fx'), ctx = cv.getContext('2d'); const dpr = Math.min(devicePixelRatio || 1, 2);
+  const W = innerWidth, H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cols = [HOME_COLOR, ...SECTIONS.map(s => s.color), '#060606', '#FFFFFF'];
+  const P = Array.from({ length: 180 }, (_, i) => { const L = i % 2 === 0; return {
+    x: L ? W * .1 : W * .9, y: H * .85, vx: (L ? 1 : -1) * (3 + Math.random() * 8) + (Math.random() - .5) * 3, vy: -(10 + Math.random() * 10),
+    r: 6 + Math.random() * 7, a: Math.random() * 6, va: (Math.random() - .5) * .35, c: cols[i % cols.length], sq: Math.random() < .6 }; });
+  const t0 = performance.now(); let last = t0;
+  const step = now => {
+    const dt = Math.min(2, (now - last) / 16.7); last = now;
+    ctx.clearRect(0, 0, W, H); let alive = false;
+    for (const p of P) {
+      p.vy += .34 * dt; p.vx *= .985; p.x += p.vx * dt; p.y += p.vy * dt; p.a += p.va * dt;
+      if (p.y < H + 30) alive = true;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.strokeStyle = '#060606'; ctx.lineWidth = 1.2;
+      if (p.sq) { ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); ctx.strokeRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); }
+      else { ctx.beginPath(); ctx.arc(0, 0, p.r / 2.4, 0, 7); ctx.fill(); ctx.stroke(); }
+      ctx.restore();
+    }
+    if (alive && now - t0 < 6000) requestAnimationFrame(step); else ctx.clearRect(0, 0, W, H);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- 启动 ---------- */
+$('#brandName').textContent = SURVEY.brand;
+$('#brandLatin').textContent = SURVEY.brandLatin;
+$('#brandSub').textContent = SURVEY.brandSub || '';
+$('#ticker').append(...[0, 1].flatMap(() => [...SURVEY.welcome.ticker, ...SURVEY.welcome.ticker].map(t => h('span', {}, t))));
+$('#secs').append(...SECTIONS.map(s => h('span', { class: 'sec', style: `--hc:${s.color}` }, s.short)));
+document.querySelectorAll('.btn').forEach(cubify);
+window.claude?.hot?.snapshot?.(() => ({ cur: state.cur, answers: state.answers, orders: state.orders, code: state.code, status: state.status, statusText: state.statusText }));
+function boot(data = {}) {
+  const d = loadDraft();
+  state.answers = data.answers || d?.answers || {};
+  state.orders = data.orders || d?.orders || {};
+  if (data.code) state.code = data.code;
+  if (data.status) { state.status = data.status; state.statusText = data.statusText; }
+  const cur = data.cur && (data.cur === 'welcome' || data.cur === 'end' || qById[data.cur]) ? data.cur : 'welcome';
+  go(cur, 1);
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
